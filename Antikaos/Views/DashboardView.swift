@@ -84,12 +84,8 @@ struct DashboardView: View {
     }
 
     private var overviewCard: some View {
-        VStack(spacing: 20) {
+        VStack {
             ChaosCircle(value: overallChaos)
-
-            Text(AppStrings.localized("dashboard.overview.summary"))
-                .font(.subheadline)
-                .foregroundStyle(AppTheme.secondaryText)
         }
         .frame(maxWidth: .infinity)
         .softCard()
