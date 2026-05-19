@@ -4,6 +4,7 @@ import SwiftData
 struct TasksView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \TaskItem.deadlineDate, order: .forward) private var tasks: [TaskItem]
+    @Query(sort: \GeneratedTaskItem.scheduledDate, order: .forward) private var generatedTasks: [GeneratedTaskItem]
 
     @State private var editorRoute: TaskEditorRoute?
 
@@ -50,6 +51,9 @@ struct TasksView: View {
                         ForEach(activeTasks) { task in
                             TaskCard(
                                 task: task,
+                                canCompleteSession: canCompleteSession(for: task),
+                                overdueTaskCount: overdueTaskCount(for: task),
+                                nextActivityDate: nextActivityDate(for: task),
                                 onCompleteSession: {
                                     withAnimation(.snappy) {
                                         TaskManager(modelContext: modelContext).completeSession(for: task)
@@ -82,6 +86,8 @@ struct TasksView: View {
                         ForEach(completedTasks) { task in
                             TaskCard(
                                 task: task,
+                                overdueTaskCount: overdueTaskCount(for: task),
+                                nextActivityDate: nextActivityDate(for: task),
                                 onCompleteSession: {},
                                 onCompleteTask: {
                                     withAnimation(.snappy) {
@@ -148,6 +154,46 @@ struct TasksView: View {
                 .foregroundStyle(AppTheme.secondaryText)
         }
         .softCard()
+    }
+
+    private func canCompleteSession(for task: TaskItem) -> Bool {
+        guard task.deadlineKind == .continuous else {
+            return !task.isCompleted
+        }
+
+        return generatedTasks.contains { generatedTask in
+            generatedTask.parentTaskID == task.id
+                && Calendar.current.isDate(generatedTask.scheduledDate, inSameDayAs: .now)
+                && !generatedTask.isCompleted
+        }
+    }
+
+    private func overdueTaskCount(for task: TaskItem) -> Int {
+        guard task.deadlineKind == .continuous else { return 0 }
+
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: .now)
+
+        return generatedTasks.filter { generatedTask in
+            generatedTask.parentTaskID == task.id
+                && generatedTask.scheduledDate < startOfToday
+                && !generatedTask.isCompleted
+        }.count
+    }
+
+    private func nextActivityDate(for task: TaskItem) -> Date? {
+        guard task.deadlineKind == .continuous else { return nil }
+
+        let startOfToday = Calendar.current.startOfDay(for: .now)
+
+        return generatedTasks
+            .filter { generatedTask in
+                generatedTask.parentTaskID == task.id
+                    && generatedTask.scheduledDate >= startOfToday
+                    && !generatedTask.isCompleted
+            }
+            .map(\.scheduledDate)
+            .min()
     }
 }
 

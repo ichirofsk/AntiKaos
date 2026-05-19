@@ -2,6 +2,9 @@ import SwiftUI
 
 struct TaskCard: View {
     let task: TaskItem
+    let canCompleteSession: Bool
+    let overdueTaskCount: Int
+    let nextActivityDate: Date?
     let onCompleteSession: () -> Void
     let onCompleteTask: () -> Void
     let onEdit: () -> Void
@@ -11,6 +14,26 @@ struct TaskCard: View {
     @State private var didTriggerTaskAnimation = false
     @State private var isShowingDeleteActions = false
 
+    init(
+        task: TaskItem,
+        canCompleteSession: Bool = true,
+        overdueTaskCount: Int = 0,
+        nextActivityDate: Date? = nil,
+        onCompleteSession: @escaping () -> Void,
+        onCompleteTask: @escaping () -> Void,
+        onEdit: @escaping () -> Void,
+        onDelete: @escaping () -> Void
+    ) {
+        self.task = task
+        self.canCompleteSession = canCompleteSession
+        self.overdueTaskCount = overdueTaskCount
+        self.nextActivityDate = nextActivityDate
+        self.onCompleteSession = onCompleteSession
+        self.onCompleteTask = onCompleteTask
+        self.onEdit = onEdit
+        self.onDelete = onDelete
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             VStack(spacing: 8) {
@@ -18,21 +41,15 @@ struct TaskCard: View {
                     .fill(AppTheme.secondarySurface)
                     .frame(width: 56, height: 56)
                     .overlay {
-                        VStack(spacing: 2) {
-                            Text("\(task.perceivedDifficulty)")
-                                .font(.headline.weight(.semibold))
-                                .foregroundStyle(AppTheme.primaryText)
-                                .contentTransition(.numericText(value: Double(task.perceivedDifficulty)))
-
-                            Text(AppStrings.localized("task.difficulty.short"))
-                                .font(.caption2)
-                                .foregroundStyle(AppTheme.secondaryText)
-                        }
+                        Text("\(task.perceivedDifficulty)")
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(AppTheme.primaryText)
+                            .contentTransition(.numericText(value: Double(task.perceivedDifficulty)))
                     }
 
-                Text(AppStrings.localized(task.chaosLevel.titleKey))
+                Text(AppStrings.localized("task.card.difficulty"))
                     .font(.caption2.weight(.medium))
-                    .foregroundStyle(task.chaosLevel.tint)
+                    .foregroundStyle(AppTheme.secondaryText)
                     .multilineTextAlignment(.center)
             }
 
@@ -53,28 +70,31 @@ struct TaskCard: View {
                     VStack(alignment: .trailing, spacing: 8) {
                         if task.isPastDeadline {
                             deadlineOutcomeControls
+                        } else if !task.isCompleted {
+                            activeDeleteButton
                         }
-
-                        Text(AppStrings.scoreCompact(task.chaosScore))
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(task.chaosLevel.tint)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(task.chaosLevel.tint.opacity(0.12), in: Capsule())
                     }
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text(AppStrings.sessionsValue(completed: task.completedSessions, total: task.totalSessions))
+                        Text(AppStrings.sessionsValue(completed: task.completedSessions, total: task.tasksQuantity))
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(AppTheme.primaryText)
 
                         Spacer()
 
-                        Text(statusLabel)
+                        Text(AppStrings.tasksQuantity(task.tasksQuantity))
                             .font(.caption)
                             .foregroundStyle(AppTheme.secondaryText)
+                    }
+
+                    HStack {
+                        Spacer()
+
+                        Text(delayStatusLabel)
+                            .font(.caption)
+                            .foregroundStyle(overdueTaskCount == 0 ? AppTheme.supportGreen : AppTheme.critical)
                     }
 
                     ProgressView(value: task.progress)
@@ -83,31 +103,28 @@ struct TaskCard: View {
                 }
 
                 HStack(spacing: 10) {
-                    if !task.isPastDeadline {
+                    if !task.isPastDeadline && !task.isCompleted && canCompleteSession {
                         Button {
                             didTriggerSessionAnimation.toggle()
                             onCompleteSession()
                         } label: {
-                            Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "checkmark.circle")
-                                .font(.title3)
-                                .foregroundStyle(task.isCompleted ? AppTheme.supportGreen : AppTheme.primaryChaos)
-                                .symbolEffect(.bounce, value: didTriggerSessionAnimation)
+                            Text(AppStrings.localized("task.card.confirmActivity"))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Color.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(
+                                    Capsule()
+                                        .fill(AppTheme.supportGreen)
+                                )
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(AppStrings.localized("task.card.completeSession"))
-                        .disabled(task.isCompleted)
-                    }
-
-                    if !task.isCompleted && !task.isPastDeadline {
-                        Button {
-                            isShowingDeleteActions = true
-                        } label: {
-                            Image(systemName: "xmark.circle")
-                                .font(.title3)
-                                .foregroundStyle(AppTheme.critical)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(AppStrings.localized("task.card.delete"))
+                        .symbolEffect(.bounce, value: didTriggerSessionAnimation)
+                    } else if !task.isPastDeadline && !task.isCompleted {
+                        Text(nextActivityLabel)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(AppTheme.secondaryText)
                     }
                 }
             }
@@ -159,15 +176,40 @@ struct TaskCard: View {
         }
     }
 
-    private var statusLabel: String {
-        if task.isCompleted {
-            return AppStrings.localized("task.status.completed")
+    private var activeDeleteButton: some View {
+        Button {
+            isShowingDeleteActions = true
+        } label: {
+            Image(systemName: "xmark.circle")
+                .font(.title3)
+                .foregroundStyle(AppTheme.critical)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(AppStrings.localized("task.card.delete"))
+    }
+
+    private var delayStatusLabel: String {
+        guard overdueTaskCount > 0 else {
+            return AppStrings.localized("task.delay.none")
         }
 
-        if task.isPastDeadline {
-            return AppStrings.localized("task.status.awaitingConfirmation")
+        return AppStrings.overdueTasks(overdueTaskCount)
+    }
+
+    private var nextActivityLabel: String {
+        guard let nextActivityDate else {
+            return AppStrings.localized("task.nextActivity.none")
         }
 
-        return AppStrings.localized("task.status.active")
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: .now)
+        let startOfActivityDay = calendar.startOfDay(for: nextActivityDate)
+        let dayCount = max(calendar.dateComponents([.day], from: startOfToday, to: startOfActivityDay).day ?? 0, 0)
+
+        if dayCount == 1 {
+            return AppStrings.localized("task.nextActivity.tomorrow")
+        }
+
+        return AppStrings.nextActivity(days: dayCount)
     }
 }

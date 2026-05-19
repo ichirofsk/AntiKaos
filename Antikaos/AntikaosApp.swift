@@ -13,6 +13,7 @@ struct AntikaosApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             TaskItem.self,
+            GeneratedTaskItem.self,
             HistoryEntry.self,
             modelHorasDisponiveis.self,
         ])

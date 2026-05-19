@@ -9,6 +9,7 @@ struct EditTaskView: View {
     @State private var title: String
     @State private var perceivedDifficulty: Double
     @State private var deadlineKind: DeadlineKind?
+    @State private var recurrences: Set<DeadlineRecurrence>
     @State private var totalSessions: Int
     @State private var completedSessions: Int
     @State private var dedicationMinutes: Int
@@ -21,6 +22,7 @@ struct EditTaskView: View {
         _title = State(initialValue: task?.title ?? "")
         _perceivedDifficulty = State(initialValue: Double(task?.perceivedDifficulty ?? 50))
         _deadlineKind = State(initialValue: task?.deadlineKind)
+        _recurrences = State(initialValue: task?.recurrences ?? [.daily])
         _totalSessions = State(initialValue: max(task?.totalSessions ?? 4, 1))
         _completedSessions = State(initialValue: max(task?.completedSessions ?? 0, 0))
         _dedicationMinutes = State(initialValue: max(task?.dedicationMinutes ?? 30, 0))
@@ -37,7 +39,9 @@ struct EditTaskView: View {
     }
 
     private var canSave: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && deadlineKind != nil
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && deadlineKind != nil
+            && (deadlineKind != .continuous || !recurrences.isEmpty)
     }
 
     var body: some View {
@@ -86,6 +90,22 @@ struct EditTaskView: View {
                             }
                         }
 
+                        if deadlineKind == .continuous {
+                            inputCard {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    Text(AppStrings.localized("task.field.recurrence"))
+                                        .font(.footnote.weight(.medium))
+                                        .foregroundStyle(AppTheme.secondaryText)
+
+                                    LazyVGrid(columns: recurrenceColumns, spacing: 10) {
+                                        ForEach(DeadlineRecurrence.allCases, id: \.self) { recurrenceOption in
+                                            recurrenceButton(recurrenceOption)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         if deadlineKind == .punctual {
                             inputCard {
                                 VStack(spacing: 16) {
@@ -122,6 +142,8 @@ struct EditTaskView: View {
                                     displayedComponents: [.date]
                                 )
                                 .datePickerStyle(.graphical)
+                                .foregroundStyle(Color.black)
+                                .environment(\.colorScheme, .light)
 
                                 Divider()
 
@@ -131,9 +153,11 @@ struct EditTaskView: View {
                                     displayedComponents: [.hourAndMinute]
                                 )
                                 .datePickerStyle(.compact)
+                                .foregroundStyle(Color.black)
+                                .environment(\.colorScheme, .light)
                             }
                             .tint(AppTheme.primaryChaos)
-                            .foregroundStyle(AppTheme.primaryText)
+                            .foregroundStyle(Color.black)
                         }
 
                         inputCard {
@@ -215,11 +239,57 @@ struct EditTaskView: View {
         .buttonStyle(.plain)
     }
 
+    private var recurrenceColumns: [GridItem] {
+        [
+            GridItem(.flexible(), spacing: 10),
+            GridItem(.flexible(), spacing: 10)
+        ]
+    }
+
+    private func recurrenceButton(_ recurrenceOption: DeadlineRecurrence) -> some View {
+        let isSelected = recurrences.contains(recurrenceOption)
+
+        return Button {
+            toggleRecurrence(recurrenceOption)
+        } label: {
+            Text(AppStrings.localized(recurrenceOption.titleKey))
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(isSelected ? Color.white : AppTheme.primaryText)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.82)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .padding(.horizontal, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(isSelected ? AppTheme.primaryChaos : AppTheme.secondarySurface)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func toggleRecurrence(_ recurrenceOption: DeadlineRecurrence) {
+        if recurrenceOption.isExclusive {
+            recurrences = [recurrenceOption]
+            return
+        }
+
+        recurrences.remove(.daily)
+        recurrences.remove(.everyTwoDays)
+
+        if recurrences.contains(recurrenceOption) {
+            recurrences.remove(recurrenceOption)
+        } else {
+            recurrences.insert(recurrenceOption)
+        }
+    }
+
     private func save() {
         let formData = TaskFormData(
             title: title,
             perceivedDifficulty: Int(perceivedDifficulty.rounded()),
             deadlineKind: deadlineKind ?? .punctual,
+            recurrences: deadlineKind == .continuous ? recurrences : [.daily],
             totalSessions: deadlineKind == .continuous ? 1 : totalSessions,
             completedSessions: deadlineKind == .continuous ? 0 : normalizedCompletedSessions,
             dedicationMinutes: deadlineKind == .continuous ? 0 : dedicationMinutes,

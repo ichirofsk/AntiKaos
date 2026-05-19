@@ -21,6 +21,18 @@ enum AppStrings {
         String.localizedStringWithFormat(localized("task.sessions.value"), completed, total)
     }
 
+    static func tasksQuantity(_ value: Int) -> String {
+        String.localizedStringWithFormat(localized("task.quantity.value"), value)
+    }
+
+    static func overdueTasks(_ value: Int) -> String {
+        String.localizedStringWithFormat(localized("task.delay.overdue"), value)
+    }
+
+    static func nextActivity(days: Int) -> String {
+        String.localizedStringWithFormat(localized("task.nextActivity.days"), days)
+    }
+
     static func historyCreated(_ title: String) -> String {
         String(format: localized("history.message.created"), locale: Locale.current, title)
     }
@@ -35,6 +47,10 @@ enum AppStrings {
 
     static func historyCompleted(_ title: String) -> String {
         String(format: localized("history.message.completed"), locale: Locale.current, title)
+    }
+
+    static func generatedTaskTitle(minutes: Int, deadlineTitle: String) -> String {
+        String(format: localized("generatedTask.title"), locale: Locale.current, minutes, deadlineTitle)
     }
 
     static func headerDate(_ date: Date) -> String {

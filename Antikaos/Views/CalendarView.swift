@@ -2,7 +2,10 @@ import SwiftUI
 import SwiftData
 
 struct CalendarView: View {
+    @Environment(\.modelContext) private var modelContext
+
     @Query(sort: \TaskItem.deadlineDate, order: .forward) private var tasks: [TaskItem]
+    @Query(sort: \GeneratedTaskItem.scheduledDate, order: .forward) private var generatedTasks: [GeneratedTaskItem]
 
     @State private var displayedMonth: Date = .now
     @State private var selectedDate: Date = .now
@@ -40,17 +43,41 @@ struct CalendarView: View {
         return days
     }
 
-    private var selectedDayTasks: [TaskItem] {
-        let exactMatches = activeTasks.filter { calendar.isDate($0.deadlineDate, inSameDayAs: selectedDate) }
+    private var selectedDayPlanEntries: [CalendarPlanEntry] {
+        let deadlineEntries = activeTasks
+            .filter { calendar.isDate($0.deadlineDate, inSameDayAs: selectedDate) }
+            .map {
+                CalendarPlanEntry(
+                    id: "deadline-\($0.id.uuidString)",
+                    title: $0.title,
+                    date: $0.deadlineDate,
+                    dedicationMinutes: nil,
+                    chaosScore: $0.chaosScore,
+                    tint: $0.chaosLevel.tint
+                )
+            }
 
-        if !exactMatches.isEmpty {
-            return exactMatches
-        }
+        let generatedEntries = generatedTasks
+            .filter { calendar.isDate($0.scheduledDate, inSameDayAs: selectedDate) }
+            .map {
+                CalendarPlanEntry(
+                    id: "generated-\($0.id.uuidString)",
+                    title: $0.title,
+                    date: $0.scheduledDate,
+                    dedicationMinutes: $0.dedicationMinutes,
+                    chaosScore: nil,
+                    tint: AppTheme.supportGreen
+                )
+            }
 
-        return activeTasks.filter { task in
-            let difference = abs(calendar.dateComponents([.day], from: selectedDate, to: task.deadlineDate).day ?? 99)
-            return difference <= 2
-        }
+        return (deadlineEntries + generatedEntries)
+            .sorted {
+                if $0.date != $1.date {
+                    return $0.date < $1.date
+                }
+
+                return $0.title < $1.title
+            }
     }
 
     var body: some View {
@@ -70,6 +97,9 @@ struct CalendarView: View {
         }
         .navigationTitle(AppStrings.localized("calendar.title"))
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            TaskManager(modelContext: modelContext).rebalanceGeneratedTasks()
+        }
     }
 
     private var monthHeader: some View {
@@ -156,30 +186,44 @@ struct CalendarView: View {
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(Color.black)
 
-            if selectedDayTasks.isEmpty {
+            if selectedDayPlanEntries.isEmpty {
                 Text(AppStrings.localized("calendar.empty"))
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.secondaryText)
             } else {
-                ForEach(selectedDayTasks) { task in
+                ForEach(selectedDayPlanEntries) { entry in
                     HStack(spacing: 12) {
                         Circle()
-                            .fill(task.chaosLevel.tint.opacity(0.18))
+                            .fill(entry.tint.opacity(0.18))
                             .frame(width: 40, height: 40)
                             .overlay {
-                                Text("\(task.chaosScore)")
-                                    .font(.footnote.weight(.semibold))
-                                    .foregroundStyle(task.chaosLevel.tint)
+                                if let chaosScore = entry.chaosScore {
+                                    Text("\(chaosScore)")
+                                        .font(.footnote.weight(.semibold))
+                                        .foregroundStyle(entry.tint)
+                                } else {
+                                    Image(systemName: "checkmark")
+                                        .font(.footnote.weight(.semibold))
+                                        .foregroundStyle(entry.tint)
+                                }
                             }
 
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(task.title)
+                            Text(entry.title)
                                 .font(.subheadline.weight(.medium))
                                 .foregroundStyle(AppTheme.primaryText)
 
-                            Text(AppStrings.deadlineRelativeString(for: task.deadlineDate))
-                                .font(.caption)
-                                .foregroundStyle(AppTheme.secondaryText)
+                            HStack(spacing: 8) {
+                                if let dedicationMinutes = entry.dedicationMinutes {
+                                    Text("\(dedicationMinutes) min")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(AppTheme.supportGreen)
+                                }
+
+                                Text(AppStrings.deadlineRelativeString(for: entry.date))
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.secondaryText)
+                            }
                         }
 
                         Spacer()
@@ -196,6 +240,7 @@ struct CalendarView: View {
 
     private func hasTask(on date: Date) -> Bool {
         activeTasks.contains { calendar.isDate($0.deadlineDate, inSameDayAs: date) }
+            || generatedTasks.contains { calendar.isDate($0.scheduledDate, inSameDayAs: date) }
     }
 
     private func backgroundColor(for date: Date) -> Color {
@@ -223,6 +268,15 @@ private struct CalendarDay: Identifiable {
     let id = UUID()
     let date: Date?
     let isInDisplayedMonth: Bool
+}
+
+private struct CalendarPlanEntry: Identifiable {
+    let id: String
+    let title: String
+    let date: Date
+    let dedicationMinutes: Int?
+    let chaosScore: Int?
+    let tint: Color
 }
 
 #Preview {

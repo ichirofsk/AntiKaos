@@ -3,10 +3,13 @@ import SwiftData
 
 struct ProfileView: View {
     @Environment(\.modelContext) private var modelContext
+    @AppStorage("profile.userName") private var userName = ""
     @Query(sort: \TaskItem.updatedAt, order: .reverse) private var tasks: [TaskItem]
     @Query(sort: \HistoryEntry.date, order: .reverse) private var historyEntries: [HistoryEntry]
     @Query(sort: \modelHorasDisponiveis.updatedAt, order: .reverse) private var availableHoursModels: [modelHorasDisponiveis]
     @State private var isEditingAvailableHours = false
+    @State private var isEditingUserName = false
+    @State private var draftUserName = ""
 
     private var completedTasksCount: Int {
         historyEntries.filter { $0.type == .taskCompleted }.count
@@ -29,18 +32,24 @@ struct ProfileView: View {
         historyEntries.filter { $0.type == .sessionCompleted }.count
     }
 
+    private var profileHeaderTitle: String {
+        let trimmedName = userName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedName.isEmpty ? AppStrings.localized("profile.title") : trimmedName
+    }
+
     var body: some View {
         ZStack {
             AppTheme.background.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
-                    Text(AppStrings.localized("profile.title"))
+                    Text(profileHeaderTitle)
                         .font(.largeTitle.weight(.bold))
                         .foregroundStyle(Color.black)
                         .padding(.horizontal, 4)
 
                     statsSection
+                    userNameSection
                     availableHoursSection
                     historySection
                 }
@@ -49,7 +58,81 @@ struct ProfileView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear(perform: createAvailableHoursModelIfNeeded)
+        .onAppear {
+            createAvailableHoursModelIfNeeded()
+            resetDraftUserName()
+        }
+    }
+
+    private var userNameSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center) {
+                Text("Nome")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Color.black)
+
+                Spacer()
+
+                Button {
+                    withAnimation(.snappy(duration: 0.22)) {
+                        if isEditingUserName {
+                            resetDraftUserName()
+                            isEditingUserName = false
+                        } else {
+                            resetDraftUserName()
+                            isEditingUserName = true
+                        }
+                    }
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(isEditingUserName ? Color.white : AppTheme.primaryText)
+                        .frame(width: 36, height: 36)
+                        .background(
+                            Circle()
+                                .fill(isEditingUserName ? AppTheme.primaryChaos : Color.white.opacity(0.72))
+                                .overlay {
+                                    Circle()
+                                        .stroke(AppTheme.primaryText.opacity(0.12), lineWidth: 1)
+                                }
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isEditingUserName ? "Cancelar edição do nome" : "Editar nome")
+            }
+
+            if isEditingUserName {
+                HStack(spacing: 10) {
+                    TextField("Nome", text: $draftUserName)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled()
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(Color.black)
+                        .padding(.horizontal, 12)
+                        .frame(height: 42)
+                        .background(Color.white, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                    Button("Salvar") {
+                        saveDraftUserName()
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.white)
+                    .frame(height: 42)
+                    .padding(.horizontal, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(trimmedDraftUserName.isEmpty ? AppTheme.secondaryText.opacity(0.35) : AppTheme.primaryChaos)
+                    )
+                    .disabled(trimmedDraftUserName.isEmpty)
+                }
+            } else {
+                Text(userName.trimmingCharacters(in: .whitespacesAndNewlines))
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(AppTheme.primaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .softCard()
     }
 
     private var statsSection: some View {
@@ -184,79 +267,41 @@ struct ProfileView: View {
     }
 
     private func saveAvailableHours() {
-        do {
-            try modelContext.save()
-        } catch {
-            assertionFailure("Failed to save available hours: \(error)")
+        TaskManager(modelContext: modelContext).rebalanceGeneratedTasks()
+    }
+
+    private var trimmedDraftUserName: String {
+        draftUserName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func resetDraftUserName() {
+        draftUserName = userName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func saveDraftUserName() {
+        guard !trimmedDraftUserName.isEmpty else { return }
+
+        userName = trimmedDraftUserName
+        draftUserName = trimmedDraftUserName
+
+        withAnimation(.snappy(duration: 0.22)) {
+            isEditingUserName = false
         }
     }
 }
 
-private struct AvailableHoursCard: View {
+struct AvailableHoursCard: View {
     @Bindable var availableHours: modelHorasDisponiveis
     @Binding var isEditing: Bool
     let onChange: () -> Void
+    var showsHeader = true
+    var allowsEditingToggle = true
     @State private var draftHours: [AvailableWeekday: Int] = [:]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Meu tempo disponível:")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Color.black)
-
-                Spacer()
-
-                if isEditing {
-                    Button {
-                        applyDraftHours()
-                        onChange()
-
-                        withAnimation(.snappy(duration: 0.22)) {
-                            isEditing = false
-                        }
-                    } label: {
-                        Text("Salvar")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Color.white)
-                            .padding(.horizontal, 14)
-                            .frame(height: 36)
-                            .background(
-                                Capsule()
-                                    .fill(AppTheme.primaryChaos)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .transition(.opacity.combined(with: .scale(scale: 0.92)))
-                    .accessibilityLabel("Salvar tempo disponível")
-                }
-
-                Button {
-                    withAnimation(.snappy(duration: 0.22)) {
-                        if isEditing {
-                            resetDraftHours()
-                            isEditing = false
-                        } else {
-                            resetDraftHours()
-                            isEditing = true
-                        }
-                    }
-                } label: {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(isEditing ? Color.white : AppTheme.primaryText)
-                        .frame(width: 36, height: 36)
-                        .background(
-                            Circle()
-                                .fill(isEditing ? AppTheme.primaryChaos : Color.white.opacity(0.72))
-                                .overlay {
-                                    Circle()
-                                        .stroke(AppTheme.primaryText.opacity(0.12), lineWidth: 1)
-                                }
-                        )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(isEditing ? "Concluir edição do tempo disponível" : "Editar tempo disponível")
+            if showsHeader {
+                header
             }
 
             GeometryReader { proxy in
@@ -301,8 +346,88 @@ private struct AvailableHoursCard: View {
                         .allowsHitTesting(false)
                 }
             }
+
+            if !showsHeader {
+                HStack {
+                    Spacer()
+                    saveButton
+                }
+            }
         }
         .onAppear(perform: resetDraftHours)
+    }
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Meu tempo disponível:")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(Color.black)
+
+            Spacer()
+
+            saveButton
+
+            if allowsEditingToggle {
+                editButton
+            }
+        }
+    }
+
+    var saveButton: some View {
+        Group {
+            if isEditing {
+                Button {
+                    applyDraftHours()
+                    onChange()
+
+                    withAnimation(.snappy(duration: 0.22)) {
+                        isEditing = false
+                    }
+                } label: {
+                    Text("Salvar")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.white)
+                        .padding(.horizontal, 14)
+                        .frame(height: 36)
+                        .background(
+                            Capsule()
+                                .fill(AppTheme.primaryChaos)
+                        )
+                }
+                .buttonStyle(.plain)
+                .transition(.opacity.combined(with: .scale(scale: 0.92)))
+                .accessibilityLabel("Salvar tempo disponível")
+            }
+        }
+    }
+
+    private var editButton: some View {
+        Button {
+            withAnimation(.snappy(duration: 0.22)) {
+                if isEditing {
+                    resetDraftHours()
+                    isEditing = false
+                } else {
+                    resetDraftHours()
+                    isEditing = true
+                }
+            }
+        } label: {
+            Image(systemName: "pencil")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(isEditing ? Color.white : AppTheme.primaryText)
+                .frame(width: 36, height: 36)
+                .background(
+                    Circle()
+                        .fill(isEditing ? AppTheme.primaryChaos : Color.white.opacity(0.72))
+                        .overlay {
+                            Circle()
+                                .stroke(AppTheme.primaryText.opacity(0.12), lineWidth: 1)
+                        }
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isEditing ? "Concluir edição do tempo disponível" : "Editar tempo disponível")
     }
 
     private func displayedHours(for day: AvailableWeekday) -> Int {

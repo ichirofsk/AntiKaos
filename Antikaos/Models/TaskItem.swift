@@ -6,6 +6,68 @@ enum DeadlineKind: String, Codable, CaseIterable {
     case punctual
 }
 
+enum DeadlineRecurrence: String, Codable, CaseIterable {
+    case daily
+    case everyTwoDays
+    case monday
+    case tuesday
+    case wednesday
+    case thursday
+    case friday
+    case saturday
+    case sunday
+}
+
+extension DeadlineRecurrence {
+    var isExclusive: Bool {
+        self == .daily || self == .everyTwoDays
+    }
+
+    var weekday: Int? {
+        switch self {
+        case .daily, .everyTwoDays:
+            return nil
+        case .monday:
+            return 2
+        case .tuesday:
+            return 3
+        case .wednesday:
+            return 4
+        case .thursday:
+            return 5
+        case .friday:
+            return 6
+        case .saturday:
+            return 7
+        case .sunday:
+            return 1
+        }
+    }
+
+    var titleKey: String {
+        switch self {
+        case .daily:
+            return "task.recurrence.daily"
+        case .everyTwoDays:
+            return "task.recurrence.everyTwoDays"
+        case .monday:
+            return "task.recurrence.monday"
+        case .tuesday:
+            return "task.recurrence.tuesday"
+        case .wednesday:
+            return "task.recurrence.wednesday"
+        case .thursday:
+            return "task.recurrence.thursday"
+        case .friday:
+            return "task.recurrence.friday"
+        case .saturday:
+            return "task.recurrence.saturday"
+        case .sunday:
+            return "task.recurrence.sunday"
+        }
+    }
+}
+
 @Model
 final class TaskItem {
     @Attribute(.unique) var id: UUID
@@ -13,7 +75,9 @@ final class TaskItem {
     var perceivedDifficulty: Int
     var totalSessions: Int
     var completedSessions: Int
+    var tasksQuantity: Int = 1
     var deadlineKindRawValue: String = DeadlineKind.punctual.rawValue
+    var recurrenceRawValue: String = DeadlineRecurrence.daily.rawValue
     var dedicationMinutes: Int = 0
     var deadlineDate: Date
     var createdAt: Date
@@ -28,6 +92,7 @@ final class TaskItem {
         totalSessions: Int,
         completedSessions: Int = 0,
         deadlineKind: DeadlineKind = .punctual,
+        recurrences: Set<DeadlineRecurrence> = [.daily],
         dedicationMinutes: Int = 0,
         deadlineDate: Date,
         createdAt: Date = .now,
@@ -40,7 +105,9 @@ final class TaskItem {
         self.perceivedDifficulty = perceivedDifficulty
         self.totalSessions = max(totalSessions, 1)
         self.completedSessions = min(max(completedSessions, 0), max(totalSessions, 1))
+        self.tasksQuantity = max(totalSessions, 1)
         self.deadlineKindRawValue = deadlineKind.rawValue
+        self.recurrenceRawValue = Self.rawValue(for: recurrences)
         self.dedicationMinutes = max(dedicationMinutes, 0)
         self.deadlineDate = deadlineDate
         self.createdAt = createdAt
@@ -56,13 +123,31 @@ extension TaskItem {
         set { deadlineKindRawValue = newValue.rawValue }
     }
 
+    var recurrence: DeadlineRecurrence {
+        get { recurrences.first ?? .daily }
+        set { recurrences = [newValue] }
+    }
+
+    var recurrences: Set<DeadlineRecurrence> {
+        get {
+            let values = recurrenceRawValue
+                .split(separator: ",")
+                .compactMap { DeadlineRecurrence(rawValue: String($0)) }
+
+            return Set(values).normalizedRecurrences
+        }
+        set {
+            recurrenceRawValue = TaskItem.rawValue(for: newValue)
+        }
+    }
+
     var progress: Double {
-        guard totalSessions > 0 else { return 0 }
-        return Double(completedSessions) / Double(totalSessions)
+        let totalTasks = max(tasksQuantity, 1)
+        return Double(min(completedSessions, totalTasks)) / Double(totalTasks)
     }
 
     var remainingSessions: Int {
-        max(totalSessions - completedSessions, 0)
+        max(max(tasksQuantity, totalSessions) - completedSessions, 0)
     }
 
     var daysUntilDeadline: Int {
@@ -84,5 +169,26 @@ extension TaskItem {
 
     var isPastDeadline: Bool {
         deadlineDate <= .now
+    }
+
+    private static func rawValue(for recurrences: Set<DeadlineRecurrence>) -> String {
+        recurrences.normalizedRecurrences
+            .sorted { $0.rawValue < $1.rawValue }
+            .map(\.rawValue)
+            .joined(separator: ",")
+    }
+}
+
+extension Set where Element == DeadlineRecurrence {
+    var normalizedRecurrences: Set<DeadlineRecurrence> {
+        if contains(.daily) {
+            return [.daily]
+        }
+
+        if contains(.everyTwoDays) {
+            return [.everyTwoDays]
+        }
+
+        return isEmpty ? [.daily] : self
     }
 }
