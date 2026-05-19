@@ -3,9 +3,13 @@ import SwiftUI
 struct TaskCard: View {
     let task: TaskItem
     let onCompleteSession: () -> Void
+    let onCompleteTask: () -> Void
     let onEdit: () -> Void
+    let onDelete: () -> Void
 
     @State private var didTriggerSessionAnimation = false
+    @State private var didTriggerTaskAnimation = false
+    @State private var isShowingDeleteActions = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
@@ -46,12 +50,18 @@ struct TaskCard: View {
 
                     Spacer(minLength: 12)
 
-                    Text(AppStrings.scoreCompact(task.chaosScore))
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(task.chaosLevel.tint)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(task.chaosLevel.tint.opacity(0.12), in: Capsule())
+                    VStack(alignment: .trailing, spacing: 8) {
+                        if task.isPastDeadline {
+                            deadlineOutcomeControls
+                        }
+
+                        Text(AppStrings.scoreCompact(task.chaosScore))
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(task.chaosLevel.tint)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(task.chaosLevel.tint.opacity(0.12), in: Capsule())
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -62,7 +72,7 @@ struct TaskCard: View {
 
                         Spacer()
 
-                        Text(task.isCompleted ? AppStrings.localized("task.status.completed") : AppStrings.localized("task.status.active"))
+                        Text(statusLabel)
                             .font(.caption)
                             .foregroundStyle(AppTheme.secondaryText)
                     }
@@ -73,31 +83,91 @@ struct TaskCard: View {
                 }
 
                 HStack(spacing: 10) {
-                    Button {
-                        didTriggerSessionAnimation.toggle()
-                        onCompleteSession()
-                    } label: {
-                        Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "checkmark.circle")
-                            .font(.title3)
-                            .foregroundStyle(task.isCompleted ? AppTheme.supportGreen : AppTheme.primaryChaos)
-                            .symbolEffect(.bounce, value: didTriggerSessionAnimation)
+                    if !task.isPastDeadline {
+                        Button {
+                            didTriggerSessionAnimation.toggle()
+                            onCompleteSession()
+                        } label: {
+                            Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "checkmark.circle")
+                                .font(.title3)
+                                .foregroundStyle(task.isCompleted ? AppTheme.supportGreen : AppTheme.primaryChaos)
+                                .symbolEffect(.bounce, value: didTriggerSessionAnimation)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(AppStrings.localized("task.card.completeSession"))
+                        .disabled(task.isCompleted)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(AppStrings.localized("task.card.completeSession"))
-                    .disabled(task.isCompleted)
 
-                    Button(action: onEdit) {
-                        Image(systemName: "square.and.pencil")
-                            .font(.title3)
-                            .foregroundStyle(AppTheme.primaryText)
+                    if !task.isCompleted && !task.isPastDeadline {
+                        Button {
+                            isShowingDeleteActions = true
+                        } label: {
+                            Image(systemName: "xmark.circle")
+                                .font(.title3)
+                                .foregroundStyle(AppTheme.critical)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(AppStrings.localized("task.card.delete"))
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(AppStrings.localized("task.card.edit"))
                 }
             }
         }
         .softCard()
         .contentShape(Rectangle())
         .onTapGesture(perform: onEdit)
+        .confirmationDialog(
+            AppStrings.localized("task.card.deletePrompt"),
+            isPresented: $isShowingDeleteActions,
+            titleVisibility: .visible
+        ) {
+            Button(AppStrings.localized("task.card.edit")) {
+                onEdit()
+            }
+
+            Button(AppStrings.localized("task.card.delete"), role: .destructive) {
+                onDelete()
+            }
+
+            Button(AppStrings.localized("common.cancel"), role: .cancel) {}
+        }
+    }
+
+    private var deadlineOutcomeControls: some View {
+        HStack(spacing: 8) {
+            Button {
+                guard !task.isCompleted else { return }
+                didTriggerTaskAnimation.toggle()
+                onCompleteTask()
+            } label: {
+                Image(systemName: task.isCompleted ? "checkmark.seal.fill" : "checkmark.seal")
+                    .font(.title3)
+                    .foregroundStyle(AppTheme.supportGreen)
+                    .symbolEffect(.bounce, value: didTriggerTaskAnimation)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(AppStrings.localized("task.card.completeTask"))
+
+            Button {
+                isShowingDeleteActions = true
+            } label: {
+                Image(systemName: "xmark.circle")
+                    .font(.title3)
+                    .foregroundStyle(AppTheme.critical)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(AppStrings.localized("task.card.delete"))
+        }
+    }
+
+    private var statusLabel: String {
+        if task.isCompleted {
+            return AppStrings.localized("task.status.completed")
+        }
+
+        if task.isPastDeadline {
+            return AppStrings.localized("task.status.awaitingConfirmation")
+        }
+
+        return AppStrings.localized("task.status.active")
     }
 }

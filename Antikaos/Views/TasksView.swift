@@ -11,7 +11,7 @@ struct TasksView: View {
 
     private var activeTasks: [TaskItem] {
         tasks
-            .filter { !$0.isCompleted }
+            .filter { !$0.isPastDeadline && $0.remainingSessions > 0 }
             .sorted { lhs, rhs in
                 if lhs.deadlineDate != rhs.deadlineDate {
                     return lhs.deadlineDate < rhs.deadlineDate
@@ -23,7 +23,7 @@ struct TasksView: View {
 
     private var completedTasks: [TaskItem] {
         tasks
-            .filter { $0.isCompleted }
+            .filter { $0.isPastDeadline && $0.remainingSessions > 0 }
             .sorted { lhs, rhs in
                 if lhs.updatedAt != rhs.updatedAt {
                     return lhs.updatedAt > rhs.updatedAt
@@ -39,7 +39,12 @@ struct TasksView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
-                    if activeTasks.isEmpty {
+                    Text(AppStrings.localized("tasks.title"))
+                        .font(.largeTitle.weight(.bold))
+                        .foregroundStyle(Color.black)
+                        .padding(.horizontal, 4)
+
+                    if activeTasks.isEmpty && completedTasks.isEmpty {
                         emptyState
                     } else {
                         ForEach(activeTasks) { task in
@@ -50,8 +55,18 @@ struct TasksView: View {
                                         TaskManager(modelContext: modelContext).completeSession(for: task)
                                     }
                                 },
+                                onCompleteTask: {
+                                    withAnimation(.snappy) {
+                                        TaskManager(modelContext: modelContext).completeTask(task)
+                                    }
+                                },
                                 onEdit: {
                                     editorRoute = .edit(task)
+                                },
+                                onDelete: {
+                                    withAnimation(.snappy) {
+                                        TaskManager(modelContext: modelContext).deleteTask(task)
+                                    }
                                 }
                             )
                         }
@@ -60,7 +75,7 @@ struct TasksView: View {
                     if !completedTasks.isEmpty {
                         Text(AppStrings.localized("tasks.completed.section"))
                             .font(.footnote.weight(.medium))
-                            .foregroundStyle(AppTheme.secondaryText)
+                            .foregroundStyle(Color.black)
                             .padding(.horizontal, 4)
                             .padding(.top, 8)
 
@@ -68,8 +83,18 @@ struct TasksView: View {
                             TaskCard(
                                 task: task,
                                 onCompleteSession: {},
+                                onCompleteTask: {
+                                    withAnimation(.snappy) {
+                                        TaskManager(modelContext: modelContext).completeTask(task)
+                                    }
+                                },
                                 onEdit: {
                                     editorRoute = .edit(task)
+                                },
+                                onDelete: {
+                                    withAnimation(.snappy) {
+                                        TaskManager(modelContext: modelContext).deleteTask(task)
+                                    }
                                 }
                             )
                             .opacity(0.82)
@@ -80,8 +105,7 @@ struct TasksView: View {
                 .padding(.vertical, 18)
             }
         }
-        .navigationTitle(AppStrings.localized("tasks.title"))
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 NavigationLink {

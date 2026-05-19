@@ -1,6 +1,11 @@
 import Foundation
 import SwiftData
 
+enum DeadlineKind: String, Codable, CaseIterable {
+    case continuous
+    case punctual
+}
+
 @Model
 final class TaskItem {
     @Attribute(.unique) var id: UUID
@@ -8,6 +13,8 @@ final class TaskItem {
     var perceivedDifficulty: Int
     var totalSessions: Int
     var completedSessions: Int
+    var deadlineKindRawValue: String = DeadlineKind.punctual.rawValue
+    var dedicationMinutes: Int = 0
     var deadlineDate: Date
     var createdAt: Date
     var updatedAt: Date
@@ -20,6 +27,8 @@ final class TaskItem {
         perceivedDifficulty: Int,
         totalSessions: Int,
         completedSessions: Int = 0,
+        deadlineKind: DeadlineKind = .punctual,
+        dedicationMinutes: Int = 0,
         deadlineDate: Date,
         createdAt: Date = .now,
         updatedAt: Date = .now,
@@ -31,6 +40,8 @@ final class TaskItem {
         self.perceivedDifficulty = perceivedDifficulty
         self.totalSessions = max(totalSessions, 1)
         self.completedSessions = min(max(completedSessions, 0), max(totalSessions, 1))
+        self.deadlineKindRawValue = deadlineKind.rawValue
+        self.dedicationMinutes = max(dedicationMinutes, 0)
         self.deadlineDate = deadlineDate
         self.createdAt = createdAt
         self.updatedAt = updatedAt
@@ -40,6 +51,11 @@ final class TaskItem {
 }
 
 extension TaskItem {
+    var deadlineKind: DeadlineKind {
+        get { DeadlineKind(rawValue: deadlineKindRawValue) ?? .punctual }
+        set { deadlineKindRawValue = newValue.rawValue }
+    }
+
     var progress: Double {
         guard totalSessions > 0 else { return 0 }
         return Double(completedSessions) / Double(totalSessions)
@@ -64,5 +80,9 @@ extension TaskItem {
 
     var chaosLevel: ChaosLevel {
         ChaosLevel(value: chaosScore)
+    }
+
+    var isPastDeadline: Bool {
+        deadlineDate <= .now
     }
 }

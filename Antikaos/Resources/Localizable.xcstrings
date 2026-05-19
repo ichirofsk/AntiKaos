@@ -320,13 +320,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "To-do (+today)"
+            "value" : "To-do (today)"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "To-do (+hoje)"
+            "value" : "To-do (hoje)"
           }
         }
       }
@@ -388,13 +388,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit task"
+            "value" : "Edit deadline"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Editar tarefa"
+            "value" : "Editar deadline"
           }
         }
       }
@@ -412,6 +412,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nenhum histórico recente ainda."
+          }
+        }
+      }
+    },
+    "focus.tapToReturn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap to return to the main interface"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toque para voltar para a interface principal"
           }
         }
       }
@@ -609,13 +626,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tasks"
+            "value" : "Deadlines"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tarefas"
+            "value" : "Deadlines"
           }
         }
       }
@@ -637,19 +654,70 @@
         }
       }
     },
+    "task.card.completeTask" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Complete deadline"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Concluir deadline"
+          }
+        }
+      }
+    },
+    "task.card.delete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete deadline"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Excluir deadline"
+          }
+        }
+      }
+    },
+    "task.card.deletePrompt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete deadline?"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Excluir deadline?"
+          }
+        }
+      }
+    },
     "task.card.edit" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit task"
+            "value" : "Edit deadline"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Editar tarefa"
+            "value" : "Editar deadline"
           }
         }
       }
@@ -688,6 +756,23 @@
         }
       }
     },
+    "task.field.dedicationMinutes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dedication time, in minutes"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tempo de dedicação, em minutos"
+          }
+        }
+      }
+    },
     "task.field.deadline" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -701,6 +786,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Deadline"
+          }
+        }
+      }
+    },
+    "task.field.deadlineTime" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hora"
           }
         }
       }
@@ -790,6 +892,40 @@
         }
       }
     },
+    "task.kind.continuous" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuous"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contínua"
+          }
+        }
+      }
+    },
+    "task.kind.punctual" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Punctual"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pontual"
+          }
+        }
+      }
+    },
     "task.sessions.value" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -820,6 +956,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ativa"
+          }
+        }
+      }
+    },
+    "task.status.awaitingConfirmation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Awaiting confirmation"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aguardando confirmação"
           }
         }
       }

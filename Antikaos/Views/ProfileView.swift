@@ -6,7 +6,7 @@ struct ProfileView: View {
     @Query(sort: \HistoryEntry.date, order: .reverse) private var historyEntries: [HistoryEntry]
 
     private var completedTasksCount: Int {
-        tasks.filter(\.isCompleted).count
+        historyEntries.filter { $0.type == .taskCompleted }.count
     }
 
     private var averageWeeklyChaos: Int {
@@ -32,6 +32,11 @@ struct ProfileView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
+                    Text(AppStrings.localized("profile.title"))
+                        .font(.largeTitle.weight(.bold))
+                        .foregroundStyle(Color.black)
+                        .padding(.horizontal, 4)
+
                     statsSection
                     historySection
                 }
@@ -39,8 +44,7 @@ struct ProfileView: View {
                 .padding(.vertical, 18)
             }
         }
-        .navigationTitle(AppStrings.localized("profile.title"))
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private var statsSection: some View {
@@ -70,7 +74,7 @@ struct ProfileView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(title)
                     .font(.subheadline)
-                    .foregroundStyle(AppTheme.secondaryText)
+                    .foregroundStyle(Color.black)
 
                 Text(value)
                     .font(.system(size: 28, weight: .semibold, design: .rounded))
@@ -94,7 +98,7 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text(AppStrings.localized("history.title"))
                 .font(.title3.weight(.semibold))
-                .foregroundStyle(AppTheme.primaryText)
+                .foregroundStyle(Color.black)
 
             if historyEntries.isEmpty {
                 Text(AppStrings.localized("history.empty"))

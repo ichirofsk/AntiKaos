@@ -9,6 +9,10 @@ struct CalendarView: View {
 
     private let calendar = Calendar.current
 
+    private var activeTasks: [TaskItem] {
+        tasks.filter { !$0.isPastDeadline && $0.remainingSessions > 0 }
+    }
+
     private var monthLabel: String {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
@@ -37,15 +41,15 @@ struct CalendarView: View {
     }
 
     private var selectedDayTasks: [TaskItem] {
-        let exactMatches = tasks.filter { calendar.isDate($0.deadlineDate, inSameDayAs: selectedDate) }
+        let exactMatches = activeTasks.filter { calendar.isDate($0.deadlineDate, inSameDayAs: selectedDate) }
 
         if !exactMatches.isEmpty {
             return exactMatches
         }
 
-        return tasks.filter { task in
+        return activeTasks.filter { task in
             let difference = abs(calendar.dateComponents([.day], from: selectedDate, to: task.deadlineDate).day ?? 99)
-            return difference <= 2 && !task.isCompleted
+            return difference <= 2
         }
     }
 
@@ -86,7 +90,7 @@ struct CalendarView: View {
 
             Text(monthLabel)
                 .font(.title3.weight(.semibold))
-                .foregroundStyle(AppTheme.primaryText)
+                .foregroundStyle(Color.black)
 
             Spacer()
 
@@ -150,7 +154,7 @@ struct CalendarView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text(AppStrings.planHeader(for: selectedDate))
                 .font(.title3.weight(.semibold))
-                .foregroundStyle(AppTheme.primaryText)
+                .foregroundStyle(Color.black)
 
             if selectedDayTasks.isEmpty {
                 Text(AppStrings.localized("calendar.empty"))
@@ -191,7 +195,7 @@ struct CalendarView: View {
     }
 
     private func hasTask(on date: Date) -> Bool {
-        tasks.contains { calendar.isDate($0.deadlineDate, inSameDayAs: date) }
+        activeTasks.contains { calendar.isDate($0.deadlineDate, inSameDayAs: date) }
     }
 
     private func backgroundColor(for date: Date) -> Color {

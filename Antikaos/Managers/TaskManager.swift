@@ -15,6 +15,8 @@ struct TaskManager {
             perceivedDifficulty: formData.perceivedDifficulty,
             totalSessions: formData.totalSessions,
             completedSessions: formData.completedSessions,
+            deadlineKind: formData.deadlineKind,
+            dedicationMinutes: formData.dedicationMinutes,
             deadlineDate: formData.deadlineDate,
             isCompleted: formData.completedSessions >= formData.totalSessions,
             notes: formData.normalizedNotes
@@ -45,8 +47,10 @@ struct TaskManager {
 
         task.title = formData.trimmedTitle
         task.perceivedDifficulty = formData.perceivedDifficulty
+        task.deadlineKind = formData.deadlineKind
         task.totalSessions = max(formData.totalSessions, 1)
         task.completedSessions = min(max(formData.completedSessions, 0), task.totalSessions)
+        task.dedicationMinutes = max(formData.dedicationMinutes, 0)
         task.deadlineDate = formData.deadlineDate
         task.notes = formData.normalizedNotes
         task.updatedAt = .now
@@ -98,6 +102,20 @@ struct TaskManager {
         saveContext()
     }
 
+    func completeTask(_ task: TaskItem) {
+        guard !task.isCompleted else { return }
+
+        addHistory(
+            type: .taskCompleted,
+            message: AppStrings.historyCompleted(task.title),
+            relatedTaskTitle: task.title,
+            chaosValue: task.chaosScore
+        )
+        modelContext.delete(task)
+
+        saveContext()
+    }
+
     func deleteTask(_ task: TaskItem) {
         modelContext.delete(task)
         saveContext()
@@ -139,8 +157,10 @@ struct TaskManager {
             from: TaskFormData(
                 title: "Estudar cálculo",
                 perceivedDifficulty: 64,
+                deadlineKind: .punctual,
                 totalSessions: 5,
                 completedSessions: 3,
+                dedicationMinutes: 45,
                 deadlineDate: calendar.date(byAdding: .day, value: 4, to: .now) ?? .now,
                 notes: "Capítulos 3 e 4."
             )
@@ -150,8 +170,10 @@ struct TaskManager {
             from: TaskFormData(
                 title: "Preparar apresentação",
                 perceivedDifficulty: 78,
+                deadlineKind: .punctual,
                 totalSessions: 4,
                 completedSessions: 1,
+                dedicationMinutes: 60,
                 deadlineDate: calendar.date(byAdding: .day, value: 2, to: .now) ?? .now,
                 notes: "Revisar narrativa e tempo."
             )
@@ -161,8 +183,10 @@ struct TaskManager {
             from: TaskFormData(
                 title: "Responder e-mails",
                 perceivedDifficulty: 28,
+                deadlineKind: .punctual,
                 totalSessions: 2,
                 completedSessions: 2,
+                dedicationMinutes: 20,
                 deadlineDate: calendar.date(byAdding: .day, value: -1, to: .now) ?? .now,
                 notes: ""
             )

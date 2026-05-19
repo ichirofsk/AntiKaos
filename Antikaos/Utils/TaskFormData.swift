@@ -3,8 +3,10 @@ import Foundation
 struct TaskFormData {
     let title: String
     let perceivedDifficulty: Int
+    let deadlineKind: DeadlineKind
     let totalSessions: Int
     let completedSessions: Int
+    let dedicationMinutes: Int
     let deadlineDate: Date
     let notes: String
 

@@ -8,8 +8,10 @@ struct EditTaskView: View {
 
     @State private var title: String
     @State private var perceivedDifficulty: Double
+    @State private var deadlineKind: DeadlineKind?
     @State private var totalSessions: Int
     @State private var completedSessions: Int
+    @State private var dedicationMinutes: Int
     @State private var deadlineDate: Date
     @State private var notes: String
 
@@ -18,8 +20,10 @@ struct EditTaskView: View {
         self.onSave = onSave
         _title = State(initialValue: task?.title ?? "")
         _perceivedDifficulty = State(initialValue: Double(task?.perceivedDifficulty ?? 50))
+        _deadlineKind = State(initialValue: task?.deadlineKind)
         _totalSessions = State(initialValue: max(task?.totalSessions ?? 4, 1))
         _completedSessions = State(initialValue: max(task?.completedSessions ?? 0, 0))
+        _dedicationMinutes = State(initialValue: max(task?.dedicationMinutes ?? 30, 0))
         _deadlineDate = State(initialValue: task?.deadlineDate ?? Calendar.current.date(byAdding: .day, value: 5, to: .now) ?? .now)
         _notes = State(initialValue: task?.notes ?? "")
     }
@@ -33,7 +37,7 @@ struct EditTaskView: View {
     }
 
     private var canSave: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && deadlineKind != nil
     }
 
     var body: some View {
@@ -76,30 +80,58 @@ struct EditTaskView: View {
                         }
 
                         inputCard {
-                            VStack(spacing: 16) {
-                                stepperRow(
-                                    title: AppStrings.localized("task.field.totalSessions"),
-                                    value: $totalSessions,
-                                    range: 1...20
-                                )
+                            HStack(spacing: 10) {
+                                deadlineKindButton(.continuous)
+                                deadlineKindButton(.punctual)
+                            }
+                        }
 
-                                Divider()
+                        if deadlineKind == .punctual {
+                            inputCard {
+                                VStack(spacing: 16) {
+                                    stepperRow(
+                                        title: AppStrings.localized("task.field.totalSessions"),
+                                        value: $totalSessions,
+                                        range: 1...20
+                                    )
 
-                                stepperRow(
-                                    title: AppStrings.localized("task.field.completedSessions"),
-                                    value: $completedSessions,
-                                    range: 0...max(totalSessions, 1)
-                                )
+                                    Divider()
+
+                                    stepperRow(
+                                        title: AppStrings.localized("task.field.completedSessions"),
+                                        value: $completedSessions,
+                                        range: 0...max(totalSessions, 1)
+                                    )
+
+                                    Divider()
+
+                                    stepperRow(
+                                        title: AppStrings.localized("task.field.dedicationMinutes"),
+                                        value: $dedicationMinutes,
+                                        range: 0...600
+                                    )
+                                }
                             }
                         }
 
                         inputCard {
-                            DatePicker(
-                                AppStrings.localized("task.field.deadline"),
-                                selection: $deadlineDate,
-                                displayedComponents: [.date]
-                            )
-                            .datePickerStyle(.graphical)
+                            VStack(spacing: 16) {
+                                DatePicker(
+                                    AppStrings.localized("task.field.deadline"),
+                                    selection: $deadlineDate,
+                                    displayedComponents: [.date]
+                                )
+                                .datePickerStyle(.graphical)
+
+                                Divider()
+
+                                DatePicker(
+                                    AppStrings.localized("task.field.deadlineTime"),
+                                    selection: $deadlineDate,
+                                    displayedComponents: [.hourAndMinute]
+                                )
+                                .datePickerStyle(.compact)
+                            }
                             .tint(AppTheme.primaryChaos)
                             .foregroundStyle(AppTheme.primaryText)
                         }
@@ -166,17 +198,42 @@ struct EditTaskView: View {
         }
     }
 
+    private func deadlineKindButton(_ kind: DeadlineKind) -> some View {
+        Button {
+            deadlineKind = kind
+        } label: {
+            Text(AppStrings.localized(kind == .continuous ? "task.kind.continuous" : "task.kind.punctual"))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(deadlineKind == kind ? Color.white : AppTheme.primaryText)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(deadlineKind == kind ? AppTheme.primaryChaos : AppTheme.secondarySurface)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
     private func save() {
         let formData = TaskFormData(
             title: title,
             perceivedDifficulty: Int(perceivedDifficulty.rounded()),
-            totalSessions: totalSessions,
-            completedSessions: normalizedCompletedSessions,
-            deadlineDate: deadlineDate,
+            deadlineKind: deadlineKind ?? .punctual,
+            totalSessions: deadlineKind == .continuous ? 1 : totalSessions,
+            completedSessions: deadlineKind == .continuous ? 0 : normalizedCompletedSessions,
+            dedicationMinutes: deadlineKind == .continuous ? 0 : dedicationMinutes,
+            deadlineDate: normalizedDeadlineDate,
             notes: notes
         )
 
         onSave(formData)
+    }
+
+    private var normalizedDeadlineDate: Date {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: deadlineDate)
+        return calendar.date(from: components) ?? deadlineDate
     }
 }
 

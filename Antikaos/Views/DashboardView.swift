@@ -3,6 +3,11 @@ import SwiftData
 
 struct DashboardView: View {
     @Query(sort: \TaskItem.deadlineDate) private var tasks: [TaskItem]
+    let onOpenFocusMode: () -> Void
+
+    init(onOpenFocusMode: @escaping () -> Void = {}) {
+        self.onOpenFocusMode = onOpenFocusMode
+    }
 
     private var activeTasks: [TaskItem] {
         tasks.filter { !$0.isCompleted }
@@ -15,26 +20,15 @@ struct DashboardView: View {
     private var todayFocus: [TaskItem] {
         let calendar = Calendar.current
 
-        return activeTasks
+        return tasks
+            .filter { calendar.isDate($0.deadlineDate, inSameDayAs: .now) }
             .sorted {
-                let lhsIsTodayOrOverdue = $0.daysUntilDeadline <= 0
-                let rhsIsTodayOrOverdue = $1.daysUntilDeadline <= 0
-
-                if lhsIsTodayOrOverdue != rhsIsTodayOrOverdue {
-                    return lhsIsTodayOrOverdue
+                if $0.deadlineDate != $1.deadlineDate {
+                    return $0.deadlineDate < $1.deadlineDate
                 }
 
-                let lhsSameWeek = calendar.isDate($0.deadlineDate, equalTo: .now, toGranularity: .weekOfYear)
-                let rhsSameWeek = calendar.isDate($1.deadlineDate, equalTo: .now, toGranularity: .weekOfYear)
-
-                if lhsSameWeek != rhsSameWeek {
-                    return lhsSameWeek
-                }
-
-                return $0.chaosScore > $1.chaosScore
+                return $0.title < $1.title
             }
-            .prefix(3)
-            .map { $0 }
     }
 
     private var weeklyPoints: [WeeklyIntensityPoint] {
@@ -63,23 +57,10 @@ struct DashboardView: View {
     private var header: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(AppStrings.localized("app.name"))
-                    .font(.largeTitle.weight(.semibold))
-                    .foregroundStyle(AppTheme.primaryText)
-
                 Text(AppStrings.headerDate(.now))
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.secondaryText)
             }
-
-            Spacer()
-
-            Text(AppStrings.headerTime(.now))
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(AppTheme.secondaryText)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color.white.opacity(0.74), in: Capsule())
         }
     }
 
@@ -89,40 +70,32 @@ struct DashboardView: View {
         }
         .frame(maxWidth: .infinity)
         .softCard()
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onOpenFocusMode)
     }
 
     private var todoCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(AppStrings.localized("dashboard.todo"))
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(AppTheme.primaryText)
+            NavigationLink {
+                TodayTodoView(tasks: todayFocus)
+            } label: {
+                Text(AppStrings.localized("dashboard.todo"))
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Color.black)
+            }
+            .buttonStyle(.plain)
 
             if todayFocus.isEmpty {
                 Text(AppStrings.localized("dashboard.todo.empty"))
                     .font(.subheadline)
                     .foregroundStyle(AppTheme.secondaryText)
             } else {
-                ForEach(todayFocus) { task in
-                    HStack(spacing: 12) {
-                        Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(task.isCompleted ? AppTheme.supportGreen : task.chaosLevel.tint)
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(task.title)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(AppTheme.primaryText)
-
-                            Text(AppStrings.deadlineRelativeString(for: task.deadlineDate))
-                                .font(.caption)
-                                .foregroundStyle(AppTheme.secondaryText)
-                        }
-
-                        Spacer()
-
-                        Text(AppStrings.sessionsValue(completed: task.completedSessions, total: task.totalSessions))
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(AppTheme.secondaryText)
+                HStack(spacing: 10) {
+                    ForEach(todayFocus) { task in
+                        TodoStatusDot(isCompleted: task.isCompleted)
                     }
+
+                    Spacer()
                 }
             }
         }
@@ -133,11 +106,85 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text(AppStrings.localized("dashboard.weekly"))
                 .font(.title3.weight(.semibold))
-                .foregroundStyle(AppTheme.primaryText)
+                .foregroundStyle(Color.black)
 
             WeeklyIntensityView(points: weeklyPoints)
         }
         .softCard()
+    }
+}
+
+private struct TodayTodoView: View {
+    let tasks: [TaskItem]
+
+    var body: some View {
+        ZStack {
+            AppTheme.background.ignoresSafeArea()
+
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 14) {
+                    if tasks.isEmpty {
+                        Text(AppStrings.localized("dashboard.todo.empty"))
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.secondaryText)
+                            .softCard()
+                    } else {
+                        ForEach(tasks) { task in
+                            HStack(spacing: 12) {
+                                Circle()
+                                    .fill(Color.clear)
+                                    .frame(width: 10, height: 10)
+                                    .overlay {
+                                        TodoStatusDot(isCompleted: task.isCompleted)
+                                    }
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(task.title)
+                                        .font(.subheadline.weight(.medium))
+                                        .foregroundStyle(AppTheme.primaryText)
+
+                                    Text(AppStrings.deadlineRelativeString(for: task.deadlineDate))
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.secondaryText)
+                                }
+
+                                Spacer()
+                            }
+                            .softCard()
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 18)
+            }
+        }
+        .navigationTitle(AppStrings.localized("dashboard.todo"))
+        .navigationBarTitleDisplayMode(.large)
+    }
+}
+
+private struct TodoStatusDot: View {
+    let isCompleted: Bool
+    @State private var isBlinking = false
+
+    var body: some View {
+        Circle()
+            .fill(isCompleted ? AppTheme.supportGreen : Color(red: 0.92, green: 0.12, blue: 0.16))
+            .frame(width: 10, height: 10)
+            .opacity(isCompleted ? 1 : (isBlinking ? 0.34 : 1))
+            .scaleEffect(isCompleted ? 1 : (isBlinking ? 0.82 : 1))
+            .animation(
+                isCompleted ? nil : .easeInOut(duration: 0.8).repeatForever(autoreverses: true),
+                value: isBlinking
+            )
+            .onAppear {
+                if !isCompleted {
+                    isBlinking = true
+                }
+            }
+            .onChange(of: isCompleted) { _, newValue in
+                isBlinking = !newValue
+            }
     }
 }
 
