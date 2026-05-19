@@ -14,6 +14,7 @@ struct AntikaosApp: App {
         let schema = Schema([
             TaskItem.self,
             HistoryEntry.self,
+            modelHorasDisponiveis.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

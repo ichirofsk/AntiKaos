@@ -2,8 +2,11 @@ import SwiftUI
 import SwiftData
 
 struct ProfileView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \TaskItem.updatedAt, order: .reverse) private var tasks: [TaskItem]
     @Query(sort: \HistoryEntry.date, order: .reverse) private var historyEntries: [HistoryEntry]
+    @Query(sort: \modelHorasDisponiveis.updatedAt, order: .reverse) private var availableHoursModels: [modelHorasDisponiveis]
+    @State private var isEditingAvailableHours = false
 
     private var completedTasksCount: Int {
         historyEntries.filter { $0.type == .taskCompleted }.count
@@ -38,6 +41,7 @@ struct ProfileView: View {
                         .padding(.horizontal, 4)
 
                     statsSection
+                    availableHoursSection
                     historySection
                 }
                 .padding(.horizontal, 20)
@@ -45,6 +49,7 @@ struct ProfileView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear(perform: createAvailableHoursModelIfNeeded)
     }
 
     private var statsSection: some View {
@@ -92,6 +97,17 @@ struct ProfileView: View {
                 }
         }
         .softCard()
+    }
+
+    @ViewBuilder
+    private var availableHoursSection: some View {
+        if let availableHours = availableHoursModels.first {
+            AvailableHoursCard(
+                availableHours: availableHours,
+                isEditing: $isEditingAvailableHours,
+                onChange: saveAvailableHours
+            )
+        }
     }
 
     private var historySection: some View {
@@ -158,6 +174,247 @@ struct ProfileView: View {
         case .taskCompleted:
             return AppTheme.critical
         }
+    }
+
+    private func createAvailableHoursModelIfNeeded() {
+        guard availableHoursModels.isEmpty else { return }
+
+        modelContext.insert(modelHorasDisponiveis())
+        saveAvailableHours()
+    }
+
+    private func saveAvailableHours() {
+        do {
+            try modelContext.save()
+        } catch {
+            assertionFailure("Failed to save available hours: \(error)")
+        }
+    }
+}
+
+private struct AvailableHoursCard: View {
+    @Bindable var availableHours: modelHorasDisponiveis
+    @Binding var isEditing: Bool
+    let onChange: () -> Void
+    @State private var draftHours: [AvailableWeekday: Int] = [:]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Meu tempo disponível:")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Color.black)
+
+                Spacer()
+
+                if isEditing {
+                    Button {
+                        applyDraftHours()
+                        onChange()
+
+                        withAnimation(.snappy(duration: 0.22)) {
+                            isEditing = false
+                        }
+                    } label: {
+                        Text("Salvar")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Color.white)
+                            .padding(.horizontal, 14)
+                            .frame(height: 36)
+                            .background(
+                                Capsule()
+                                    .fill(AppTheme.primaryChaos)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.opacity.combined(with: .scale(scale: 0.92)))
+                    .accessibilityLabel("Salvar tempo disponível")
+                }
+
+                Button {
+                    withAnimation(.snappy(duration: 0.22)) {
+                        if isEditing {
+                            resetDraftHours()
+                            isEditing = false
+                        } else {
+                            resetDraftHours()
+                            isEditing = true
+                        }
+                    }
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(isEditing ? Color.white : AppTheme.primaryText)
+                        .frame(width: 36, height: 36)
+                        .background(
+                            Circle()
+                                .fill(isEditing ? AppTheme.primaryChaos : Color.white.opacity(0.72))
+                                .overlay {
+                                    Circle()
+                                        .stroke(AppTheme.primaryText.opacity(0.12), lineWidth: 1)
+                                }
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isEditing ? "Concluir edição do tempo disponível" : "Editar tempo disponível")
+            }
+
+            GeometryReader { proxy in
+                let metrics = AvailableHoursLayoutMetrics(width: proxy.size.width)
+
+                HStack(alignment: .top, spacing: metrics.columnSpacing) {
+                    ForEach(AvailableWeekday.allCases) { day in
+                        VStack(spacing: metrics.daySpacing) {
+                            Text(day.shortTitle)
+                                .font(.system(size: metrics.labelFontSize, weight: .medium))
+                                .foregroundStyle(Color.black)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                                .frame(width: metrics.dayColumnWidth)
+
+                            AvailableHoursSlider(
+                                value: displayedHours(for: day),
+                                isEditing: isEditing,
+                                trackHeight: metrics.trackHeight,
+                                fillWidth: metrics.sliderWidth
+                            ) { value in
+                                draftHours[day] = min(max(value, 0), 24)
+                            }
+                        }
+                        .frame(width: metrics.dayColumnWidth)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+            }
+            .frame(height: AvailableHoursLayoutMetrics.panelHeight)
+            .padding(.horizontal, 10)
+            .padding(.top, 18)
+            .padding(.bottom, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 34, style: .continuous)
+                    .fill(Color.white)
+            )
+            .overlay(alignment: .topTrailing) {
+                if !isEditing {
+                    RoundedRectangle(cornerRadius: 34, style: .continuous)
+                        .fill(Color.white.opacity(0.12))
+                        .allowsHitTesting(false)
+                }
+            }
+        }
+        .onAppear(perform: resetDraftHours)
+    }
+
+    private func displayedHours(for day: AvailableWeekday) -> Int {
+        if isEditing {
+            return draftHours[day] ?? availableHours.horas(for: day)
+        }
+
+        return availableHours.horas(for: day)
+    }
+
+    private func resetDraftHours() {
+        draftHours = Dictionary(
+            uniqueKeysWithValues: AvailableWeekday.allCases.map { day in
+                (day, availableHours.horas(for: day))
+            }
+        )
+    }
+
+    private func applyDraftHours() {
+        for day in AvailableWeekday.allCases {
+            availableHours.setHoras(draftHours[day] ?? availableHours.horas(for: day), for: day)
+        }
+    }
+}
+
+private struct AvailableHoursLayoutMetrics {
+    static let panelHeight: CGFloat = 218
+
+    let width: CGFloat
+
+    var columnSpacing: CGFloat { width < 360 ? 4 : 7 }
+    var daySpacing: CGFloat { width < 360 ? 10 : 12 }
+    var labelFontSize: CGFloat { width < 360 ? 16 : 18 }
+    var trackHeight: CGFloat { min(178, max(146, width * 0.44)) }
+
+    var dayColumnWidth: CGFloat {
+        let gaps = columnSpacing * CGFloat(AvailableWeekday.allCases.count - 1)
+        let availableWidth = width - gaps
+        return max(28, floor(availableWidth / CGFloat(AvailableWeekday.allCases.count)))
+    }
+
+    var sliderWidth: CGFloat {
+        min(42, max(28, dayColumnWidth - 4))
+    }
+}
+
+private struct AvailableHoursSlider: View {
+    let value: Int
+    let isEditing: Bool
+    let trackHeight: CGFloat
+    let fillWidth: CGFloat
+    let onValueChange: (Int) -> Void
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack(alignment: .bottom) {
+                Rectangle()
+                    .fill(Color.black.opacity(0.88))
+                    .frame(width: 1.4, height: trackHeight)
+                    .padding(.bottom, 10)
+
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(AppTheme.supportGreen.opacity(isEditing ? 0.78 : 0.58))
+                    .frame(width: fillWidth, height: fillHeight)
+                    .overlay(alignment: .center) {
+                        Text("\(value)h")
+                            .font(.title3.weight(.medium))
+                            .foregroundStyle(Color.black)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                    }
+                    .padding(.bottom, 0)
+                    .shadow(color: Color.black.opacity(isEditing ? 0.08 : 0), radius: 6, x: 0, y: 3)
+            }
+            .frame(height: trackHeight + 10)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        guard isEditing else { return }
+                        updateValue(from: gesture.location.y)
+                    }
+            )
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Horas disponíveis")
+            .accessibilityValue("\(value) horas")
+            .accessibilityAdjustableAction { direction in
+                guard isEditing else { return }
+
+                switch direction {
+                case .increment:
+                    onValueChange(value + 1)
+                case .decrement:
+                    onValueChange(value - 1)
+                @unknown default:
+                    break
+                }
+            }
+        }
+        .opacity(isEditing ? 1 : 0.86)
+        .allowsHitTesting(isEditing)
+    }
+
+    private var fillHeight: CGFloat {
+        max(42, CGFloat(value) / 24 * trackHeight)
+    }
+
+    private func updateValue(from locationY: CGFloat) {
+        let adjustedY = min(max(locationY - 10, 0), trackHeight)
+        let progress = 1 - (adjustedY / trackHeight)
+        let newValue = Int((progress * 24).rounded())
+        onValueChange(newValue)
     }
 }
 

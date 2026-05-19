@@ -197,6 +197,7 @@ struct TaskManager {
         let schema = Schema([
             TaskItem.self,
             HistoryEntry.self,
+            modelHorasDisponiveis.self,
         ])
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         let container = try! ModelContainer(for: schema, configurations: [configuration])
