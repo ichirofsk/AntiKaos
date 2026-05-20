@@ -3,38 +3,53 @@ import SwiftUI
 struct WeeklyIntensityPoint: Identifiable {
     let id = UUID()
     let date: Date
-    let value: Int
+    let stars: Int
+    let hasTasks: Bool
 }
 
 struct WeeklyIntensityView: View {
     let points: [WeeklyIntensityPoint]
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 14) {
+        HStack(alignment: .bottom, spacing: 10) {
             ForEach(points) { point in
-                let level = ChaosLevel(value: point.value)
+                VStack(spacing: 8) {
+                    Group {
+                        if point.hasTasks {
+                            VStack(spacing: 3) {
+                                ForEach(0..<3, id: \.self) { index in
+                                    Image(systemName: index < point.stars ? "star.fill" : "star")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(index < point.stars ? Color.yellow : AppTheme.track)
+                                }
+                            }
+                        } else {
+                            Image(systemName: "zzz")
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundStyle(AppTheme.inkSoft)
+                        }
+                    }
+                    .frame(height: 50, alignment: .center)
+                    .animation(.spring(response: 0.45, dampingFraction: 0.84), value: point.stars)
+                    .animation(.spring(response: 0.45, dampingFraction: 0.84), value: point.hasTasks)
 
-                VStack(spacing: 10) {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(level.tint.opacity(0.85))
-                        .frame(width: 22, height: barHeight(for: point.value))
-                        .animation(.spring(response: 0.45, dampingFraction: 0.84), value: point.value)
-
-                    Text(shortWeekday(for: point.date))
+                    Text(dayLabel(for: point.date))
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(AppTheme.secondaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                 }
                 .frame(maxWidth: .infinity)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 116, alignment: .bottom)
+        .frame(maxWidth: .infinity, minHeight: 92, alignment: .bottom)
     }
 
-    private func barHeight(for value: Int) -> CGFloat {
-        22 + (CGFloat(value) / 100) * 54
-    }
+    private func dayLabel(for date: Date) -> String {
+        if Calendar.current.isDateInToday(date) {
+            return "Hoje"
+        }
 
-    private func shortWeekday(for date: Date) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
         formatter.setLocalizedDateFormatFromTemplate("EE")
@@ -44,13 +59,13 @@ struct WeeklyIntensityView: View {
 
 #Preview {
     WeeklyIntensityView(points: [
-        WeeklyIntensityPoint(date: .now, value: 22),
-        WeeklyIntensityPoint(date: .now.addingTimeInterval(86_400), value: 35),
-        WeeklyIntensityPoint(date: .now.addingTimeInterval(172_800), value: 47),
-        WeeklyIntensityPoint(date: .now.addingTimeInterval(259_200), value: 62),
-        WeeklyIntensityPoint(date: .now.addingTimeInterval(345_600), value: 58),
-        WeeklyIntensityPoint(date: .now.addingTimeInterval(432_000), value: 42),
-        WeeklyIntensityPoint(date: .now.addingTimeInterval(518_400), value: 31),
+        WeeklyIntensityPoint(date: .now.addingTimeInterval(-518_400), stars: 1, hasTasks: true),
+        WeeklyIntensityPoint(date: .now.addingTimeInterval(-432_000), stars: 3, hasTasks: true),
+        WeeklyIntensityPoint(date: .now.addingTimeInterval(-345_600), stars: 2, hasTasks: true),
+        WeeklyIntensityPoint(date: .now.addingTimeInterval(-259_200), stars: 0, hasTasks: true),
+        WeeklyIntensityPoint(date: .now.addingTimeInterval(-172_800), stars: 0, hasTasks: false),
+        WeeklyIntensityPoint(date: .now.addingTimeInterval(-86_400), stars: 2, hasTasks: true),
+        WeeklyIntensityPoint(date: .now, stars: 3, hasTasks: true),
     ])
     .padding()
     .background(AppTheme.background)

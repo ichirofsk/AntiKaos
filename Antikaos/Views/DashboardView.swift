@@ -34,6 +34,7 @@ struct DashboardView: View {
             .map {
                 TodayTodoEntry(
                     id: "generated-\($0.id.uuidString)",
+                    generatedTaskID: $0.id,
                     parentTaskID: $0.parentTaskID,
                     title: $0.title,
                     date: $0.scheduledDate,
@@ -61,7 +62,54 @@ struct DashboardView: View {
     }
 
     private var weeklyPoints: [WeeklyIntensityPoint] {
-        ChaosCalculator.projectedWeeklyIntensity(for: activeTasks)
+        let calendar = Calendar.current
+
+        return (-6...0).compactMap { offset in
+            guard let day = calendar.date(byAdding: .day, value: offset, to: currentDate) else { return nil }
+            let dayTasks = generatedTasks.filter { calendar.isDate($0.scheduledDate, inSameDayAs: day) }
+            let completedCount = dayTasks.filter(\.isCompleted).count
+
+            return WeeklyIntensityPoint(
+                date: day,
+                stars: starCount(completedTasks: completedCount, totalTasks: dayTasks.count),
+                hasTasks: !dayTasks.isEmpty
+            )
+        }
+    }
+
+    private var noDelayStreak: Int {
+        let calendar = Calendar.current
+        let completedTasks = generatedTasks.filter(\.isCompleted)
+
+        guard let latestCompletedDate = completedTasks.map(\.scheduledDate).max() else {
+            return 0
+        }
+
+        let startDay = calendar.startOfDay(for: latestCompletedDate)
+        let earliestGeneratedDay = generatedTasks
+            .map { calendar.startOfDay(for: $0.scheduledDate) }
+            .min() ?? startDay
+
+        var streak = 0
+        var day = startDay
+
+        while day >= earliestGeneratedDay {
+            let dayTasks = generatedTasks.filter { calendar.isDate($0.scheduledDate, inSameDayAs: day) }
+
+            if dayTasks.contains(where: { !$0.isCompleted }) {
+                break
+            }
+
+            streak += 1
+
+            guard let previousDay = calendar.date(byAdding: .day, value: -1, to: day) else {
+                break
+            }
+
+            day = previousDay
+        }
+
+        return streak
     }
 
     var body: some View {
@@ -113,29 +161,31 @@ struct DashboardView: View {
     }
 
     private var todoCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            NavigationLink {
-                TodayTodoView()
-            } label: {
+        NavigationLink {
+            TodayTodoView()
+        } label: {
+            VStack(alignment: .leading, spacing: 16) {
                 Text(AppStrings.localized("dashboard.todo"))
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(Color.black)
-            }
-            .buttonStyle(.plain)
 
-            if todayFocus.isEmpty {
-                Text(AppStrings.localized("dashboard.todo.empty"))
-                    .font(.subheadline)
-                    .foregroundStyle(AppTheme.secondaryText)
-            } else {
-                LazyVGrid(columns: todoDotColumns, alignment: .leading, spacing: 10) {
-                    ForEach(Array(todayDotStatuses.enumerated()), id: \.offset) { _, isCompleted in
-                        TodoStatusDot(isCompleted: isCompleted)
+                if todayFocus.isEmpty {
+                    Text(AppStrings.localized("dashboard.todo.empty"))
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.secondaryText)
+                } else {
+                    LazyVGrid(columns: todoDotColumns, alignment: .leading, spacing: 10) {
+                        ForEach(Array(todayDotStatuses.enumerated()), id: \.offset) { _, isCompleted in
+                            TodoStatusDot(isCompleted: isCompleted)
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .softCard()
     }
 
@@ -143,11 +193,46 @@ struct DashboardView: View {
         [GridItem(.adaptive(minimum: 10, maximum: 10), spacing: 10, alignment: .leading)]
     }
 
+    private func starCount(completedTasks: Int, totalTasks: Int) -> Int {
+        guard totalTasks > 0, completedTasks > 0 else { return 0 }
+
+        let completionRate = Double(completedTasks) / Double(totalTasks)
+
+        if completionRate == 1 {
+            return 3
+        }
+
+        if completionRate >= 0.4 {
+            return 2
+        }
+
+        return 1
+    }
+
     private var weeklyCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(AppStrings.localized("dashboard.weekly"))
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(Color.black)
+            HStack(alignment: .center) {
+                Text(AppStrings.localized("dashboard.weekly"))
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Color.black)
+
+                Spacer(minLength: 12)
+
+                HStack(spacing: 6) {
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 16, weight: .bold))
+
+                    Text("\(noDelayStreak)")
+                        .font(.subheadline.weight(.bold))
+                }
+                .foregroundStyle(AppTheme.primaryChaos)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(AppTheme.primaryChaos.opacity(0.12))
+                )
+            }
 
             WeeklyIntensityView(points: weeklyPoints)
         }
@@ -169,6 +254,7 @@ private struct TodayTodoView: View {
             .map {
                 TodayTodoEntry(
                     id: "generated-\($0.id.uuidString)",
+                    generatedTaskID: $0.id,
                     parentTaskID: $0.parentTaskID,
                     title: $0.title,
                     date: $0.scheduledDate,
@@ -276,6 +362,18 @@ private struct TodayTodoView: View {
                                     }
 
                                     Spacer()
+
+                                    if task.isCompleted {
+                                        Button {
+                                            uncomplete(task)
+                                        } label: {
+                                            Image(systemName: "arrow.uturn.backward.circle.fill")
+                                                .font(.title3)
+                                                .foregroundStyle(AppTheme.primaryChaos)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityLabel(AppStrings.localized("task.card.undoCompletion"))
+                                    }
                                 }
                                 .frame(maxWidth: .infinity)
                                 .softCard()
@@ -304,10 +402,19 @@ private struct TodayTodoView: View {
             TaskManager(modelContext: modelContext).completeSession(for: parentTask)
         }
     }
+
+    private func uncomplete(_ task: TodayTodoEntry) {
+        guard task.isCompleted else { return }
+
+        withAnimation(.snappy) {
+            TaskManager(modelContext: modelContext).uncompleteGeneratedTask(id: task.generatedTaskID)
+        }
+    }
 }
 
 private struct TodayTodoEntry: Identifiable {
     let id: String
+    let generatedTaskID: UUID
     let parentTaskID: UUID
     let title: String
     let date: Date

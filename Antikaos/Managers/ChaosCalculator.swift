@@ -32,18 +32,6 @@ enum ChaosCalculator {
         return Int((totalChaos / Double(activeTasks.count)).rounded())
     }
 
-    static func projectedWeeklyIntensity(for tasks: [TaskItem], from date: Date = .now) -> [WeeklyIntensityPoint] {
-        let calendar = Calendar.current
-
-        return (0..<7).compactMap { offset in
-            guard let projectedDate = calendar.date(byAdding: .day, value: offset, to: date) else { return nil }
-            return WeeklyIntensityPoint(
-                date: projectedDate,
-                value: overallChaos(for: tasks, asOf: projectedDate)
-            )
-        }
-    }
-
     private static func clamp(_ value: Double, lower: Double, upper: Double) -> Double {
         min(max(value, lower), upper)
     }

@@ -84,6 +84,10 @@ struct TaskManager {
     func completeSession(for task: TaskItem) {
         guard !task.isCompleted else { return }
 
+        if completeTodayGeneratedTask(for: task) {
+            return
+        }
+
         if task.deadlineKind == .continuous {
             completeTodayGeneratedTask(for: task)
             return
@@ -109,6 +113,29 @@ struct TaskManager {
                 chaosValue: task.chaosScore
             )
             deleteGeneratedTasks(for: task)
+        }
+
+        saveContext()
+    }
+
+    func uncompleteGeneratedTask(id: UUID) {
+        let descriptor = FetchDescriptor<GeneratedTaskItem>(
+            predicate: #Predicate { generatedTask in
+                generatedTask.id == id
+            }
+        )
+
+        guard let generatedTask = (try? modelContext.fetch(descriptor))?.first,
+              generatedTask.isCompleted else {
+            return
+        }
+
+        generatedTask.isCompleted = false
+
+        if let parentTask = fetchTasks().first(where: { $0.id == generatedTask.parentTaskID }) {
+            parentTask.completedSessions = max(parentTask.completedSessions - 1, 0)
+            parentTask.isCompleted = false
+            parentTask.updatedAt = .now
         }
 
         saveContext()
@@ -178,34 +205,60 @@ struct TaskManager {
         let allTasks = fetchTasks()
         let availableHours = fetchAvailableHours()
         var candidates: [GeneratedTaskCandidate] = []
-        var continuousTasks: [TaskItem] = []
+        var generatedParentTasks: [TaskItem] = []
         var generatedCountByTaskID: [UUID: Int] = [:]
         var completedCountByTaskID: [UUID: Int] = [:]
 
         for task in allTasks {
-            guard task.deadlineKind == .continuous,
-                  !task.isCompleted,
+            guard !task.isCompleted,
                   task.deadlineDate > .now else {
                 task.tasksQuantity = task.deadlineKind == .continuous ? 0 : task.totalSessions
                 continue
             }
 
-            let scheduledDates = DeadlineSchedule.generatedTaskDates(for: task, from: .now)
-            continuousTasks.append(task)
+            switch task.deadlineKind {
+            case .continuous:
+                let scheduledDates = DeadlineSchedule.generatedTaskDates(for: task, from: .now)
+                generatedParentTasks.append(task)
 
-            task.tasksQuantity = 0
-            task.totalSessions = 1
-            task.completedSessions = 0
-            task.isCompleted = false
+                task.tasksQuantity = 0
+                task.totalSessions = 1
+                task.completedSessions = 0
+                task.isCompleted = false
 
-            for scheduledDate in scheduledDates {
-                candidates.append(
-                    GeneratedTaskCandidate(
-                        task: task,
-                        scheduledDate: scheduledDate,
-                        baseMinutes: dedicationMinutes(for: task.perceivedDifficulty)
+                for scheduledDate in scheduledDates {
+                    candidates.append(
+                        GeneratedTaskCandidate(
+                            task: task,
+                            scheduledDate: scheduledDate,
+                            baseMinutes: dedicationMinutes(for: task.perceivedDifficulty),
+                            usesFixedMinutes: false,
+                            defaultIsCompleted: false
+                        )
                     )
-                )
+                }
+
+            case .punctual:
+                let completedSessions = task.completedSessions
+                let scheduledDates = punctualGeneratedTaskDates(for: task, from: .now)
+                generatedParentTasks.append(task)
+
+                task.tasksQuantity = 0
+                task.totalSessions = max(scheduledDates.count, 1)
+                task.completedSessions = 0
+                task.isCompleted = false
+
+                for (index, scheduledDate) in scheduledDates.enumerated() {
+                    candidates.append(
+                        GeneratedTaskCandidate(
+                            task: task,
+                            scheduledDate: scheduledDate,
+                            baseMinutes: task.dedicationMinutes,
+                            usesFixedMinutes: true,
+                            defaultIsCompleted: index < completedSessions
+                        )
+                    )
+                }
             }
         }
 
@@ -216,13 +269,16 @@ struct TaskManager {
         for (day, dayCandidates) in candidatesByDay {
             let availableMinutes = availableMinutes(on: day, availableHours: availableHours)
             let deliveryReserveMinutes = deadlineDeliveryReserveMinutes(on: day, tasks: allTasks)
-            let distributableMinutes = max(availableMinutes - deliveryReserveMinutes, 0)
-            let minutesByKey = dedicationMinutesByCandidate(for: dayCandidates, availableMinutes: distributableMinutes)
+            let fixedCandidates = dayCandidates.filter(\.usesFixedMinutes)
+            let flexibleCandidates = dayCandidates.filter { !$0.usesFixedMinutes }
+            let fixedMinutes = fixedCandidates.reduce(0) { $0 + $1.baseMinutes }
+            let distributableMinutes = max(availableMinutes - deliveryReserveMinutes - fixedMinutes, 0)
+            let minutesByKey = dedicationMinutesByCandidate(for: flexibleCandidates, availableMinutes: distributableMinutes)
 
             for candidate in dayCandidates {
                 let key = generatedTaskKey(parentTaskID: candidate.task.id, scheduledDate: candidate.scheduledDate)
-                let minutes = minutesByKey[key] ?? candidate.baseMinutes
-                let isCompleted = completedKeys.contains(key)
+                let minutes = candidate.usesFixedMinutes ? candidate.baseMinutes : (minutesByKey[key] ?? candidate.baseMinutes)
+                let isCompleted = completedKeys.contains(key) || candidate.defaultIsCompleted
 
                 guard minutes > 0 else { continue }
 
@@ -243,7 +299,7 @@ struct TaskManager {
             }
         }
 
-        for task in continuousTasks {
+        for task in generatedParentTasks {
             let generatedCount = generatedCountByTaskID[task.id, default: 0]
             let completedCount = completedCountByTaskID[task.id, default: 0]
 
@@ -252,6 +308,55 @@ struct TaskManager {
             task.completedSessions = min(completedCount, generatedCount)
             task.isCompleted = generatedCount > 0 && task.completedSessions >= generatedCount
         }
+    }
+
+    private func punctualGeneratedTaskDates(for task: TaskItem, from date: Date) -> [Date] {
+        let calendar = Calendar.current
+        let startDay = calendar.startOfDay(for: date)
+        let deadlineDay = calendar.startOfDay(for: task.deadlineDate)
+        guard startDay < deadlineDay else { return [] }
+
+        var days: [Date] = []
+        var day = startDay
+
+        while day < deadlineDay {
+            days.append(day)
+            guard let nextDay = calendar.date(byAdding: .day, value: 1, to: day) else { break }
+            day = nextDay
+        }
+
+        let sessionCount = min(max(task.totalSessions, 0), days.count)
+        guard sessionCount > 0 else { return [] }
+
+        let selectedDays: [Date]
+        if sessionCount == days.count {
+            selectedDays = days
+        } else if sessionCount == 1 {
+            selectedDays = [days[0]]
+        } else {
+            let lastIndex = days.count - 1
+            selectedDays = (0..<sessionCount).map { index in
+                let rawIndex = Double(index) * Double(lastIndex) / Double(sessionCount - 1)
+                return days[Int(rawIndex.rounded())]
+            }
+        }
+
+        return selectedDays.compactMap { day in
+            scheduledDate(on: day, matchingTimeOf: task.deadlineDate, calendar: calendar)
+        }
+    }
+
+    private func scheduledDate(on day: Date, matchingTimeOf referenceDate: Date, calendar: Calendar) -> Date? {
+        let dayComponents = calendar.dateComponents([.year, .month, .day], from: day)
+        let timeComponents = calendar.dateComponents([.hour, .minute, .second], from: referenceDate)
+        var components = DateComponents()
+        components.year = dayComponents.year
+        components.month = dayComponents.month
+        components.day = dayComponents.day
+        components.hour = timeComponents.hour
+        components.minute = timeComponents.minute
+        components.second = timeComponents.second
+        return calendar.date(from: components)
     }
 
     private func fetchTasks() -> [TaskItem] {
@@ -380,7 +485,8 @@ struct TaskManager {
         }
     }
 
-    private func completeTodayGeneratedTask(for task: TaskItem) {
+    @discardableResult
+    private func completeTodayGeneratedTask(for task: TaskItem) -> Bool {
         let parentID = task.id
         let descriptor = FetchDescriptor<GeneratedTaskItem>(
             predicate: #Predicate { generatedTask in
@@ -393,7 +499,7 @@ struct TaskManager {
                   Calendar.current.isDate(generatedTask.scheduledDate, inSameDayAs: .now)
               }),
               !todayTask.isCompleted else {
-            return
+            return false
         }
 
         todayTask.isCompleted = true
@@ -419,6 +525,7 @@ struct TaskManager {
         }
 
         saveContext()
+        return true
     }
 
     private func dedicationMinutes(for perceivedDifficulty: Int) -> Int {
@@ -495,6 +602,8 @@ private struct GeneratedTaskCandidate {
     let task: TaskItem
     let scheduledDate: Date
     let baseMinutes: Int
+    let usesFixedMinutes: Bool
+    let defaultIsCompleted: Bool
 }
 
 private struct GeneratedTaskAllocation {

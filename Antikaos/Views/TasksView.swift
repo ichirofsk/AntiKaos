@@ -38,78 +38,38 @@ struct TasksView: View {
         ZStack {
             AppTheme.background.ignoresSafeArea()
 
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 18) {
-                    Text(AppStrings.localized("tasks.title"))
-                        .font(.largeTitle.weight(.bold))
-                        .foregroundStyle(Color.black)
-                        .padding(.horizontal, 4)
+            List {
+                Text(AppStrings.localized("tasks.title"))
+                    .font(.largeTitle.weight(.bold))
+                    .foregroundStyle(Color.black)
+                    .padding(.horizontal, 4)
+                    .listRowStyle()
 
-                    if activeTasks.isEmpty && completedTasks.isEmpty {
-                        emptyState
-                    } else {
-                        ForEach(activeTasks) { task in
-                            TaskCard(
-                                task: task,
-                                canCompleteSession: canCompleteSession(for: task),
-                                overdueTaskCount: overdueTaskCount(for: task),
-                                nextActivityDate: nextActivityDate(for: task),
-                                onCompleteSession: {
-                                    withAnimation(.snappy) {
-                                        TaskManager(modelContext: modelContext).completeSession(for: task)
-                                    }
-                                },
-                                onCompleteTask: {
-                                    withAnimation(.snappy) {
-                                        TaskManager(modelContext: modelContext).completeTask(task)
-                                    }
-                                },
-                                onEdit: {
-                                    editorRoute = .edit(task)
-                                },
-                                onDelete: {
-                                    withAnimation(.snappy) {
-                                        TaskManager(modelContext: modelContext).deleteTask(task)
-                                    }
-                                }
-                            )
-                        }
-                    }
-
-                    if !completedTasks.isEmpty {
-                        Text(AppStrings.localized("tasks.completed.section"))
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(Color.black)
-                            .padding(.horizontal, 4)
-                            .padding(.top, 8)
-
-                        ForEach(completedTasks) { task in
-                            TaskCard(
-                                task: task,
-                                overdueTaskCount: overdueTaskCount(for: task),
-                                nextActivityDate: nextActivityDate(for: task),
-                                onCompleteSession: {},
-                                onCompleteTask: {
-                                    withAnimation(.snappy) {
-                                        TaskManager(modelContext: modelContext).completeTask(task)
-                                    }
-                                },
-                                onEdit: {
-                                    editorRoute = .edit(task)
-                                },
-                                onDelete: {
-                                    withAnimation(.snappy) {
-                                        TaskManager(modelContext: modelContext).deleteTask(task)
-                                    }
-                                }
-                            )
-                            .opacity(0.82)
-                        }
+                if activeTasks.isEmpty && completedTasks.isEmpty {
+                    emptyState
+                        .listRowStyle()
+                } else {
+                    ForEach(activeTasks) { task in
+                        taskCardRow(task)
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 18)
+
+                if !completedTasks.isEmpty {
+                    Text(AppStrings.localized("tasks.completed.section"))
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Color.black)
+                        .padding(.horizontal, 4)
+                        .padding(.top, 8)
+                        .listRowStyle()
+
+                    ForEach(completedTasks) { task in
+                        taskCardRow(task, isExpired: true)
+                    }
+                }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .listRowSpacing(2)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -156,11 +116,43 @@ struct TasksView: View {
         .softCard()
     }
 
-    private func canCompleteSession(for task: TaskItem) -> Bool {
-        guard task.deadlineKind == .continuous else {
-            return !task.isCompleted
+    private func taskCardRow(_ task: TaskItem, isExpired: Bool = false) -> some View {
+        TaskCard(
+            task: task,
+            canCompleteSession: canCompleteSession(for: task),
+            overdueTaskCount: overdueTaskCount(for: task),
+            onCompleteSession: {
+                withAnimation(.snappy) {
+                    TaskManager(modelContext: modelContext).completeSession(for: task)
+                }
+            },
+            onCompleteTask: {
+                withAnimation(.snappy) {
+                    TaskManager(modelContext: modelContext).completeTask(task)
+                }
+            },
+            onEdit: {
+                editorRoute = .edit(task)
+            }
+        )
+        .opacity(isExpired ? 0.82 : 1)
+        .listRowStyle()
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                deleteTask(task)
+            } label: {
+                Label(AppStrings.localized("task.card.delete"), systemImage: "trash")
+            }
         }
+    }
 
+    private func deleteTask(_ task: TaskItem) {
+        withAnimation(.snappy) {
+            TaskManager(modelContext: modelContext).deleteTask(task)
+        }
+    }
+
+    private func canCompleteSession(for task: TaskItem) -> Bool {
         return generatedTasks.contains { generatedTask in
             generatedTask.parentTaskID == task.id
                 && Calendar.current.isDate(generatedTask.scheduledDate, inSameDayAs: .now)
@@ -169,8 +161,6 @@ struct TasksView: View {
     }
 
     private func overdueTaskCount(for task: TaskItem) -> Int {
-        guard task.deadlineKind == .continuous else { return 0 }
-
         let calendar = Calendar.current
         let startOfToday = calendar.startOfDay(for: .now)
 
@@ -180,20 +170,14 @@ struct TasksView: View {
                 && !generatedTask.isCompleted
         }.count
     }
+}
 
-    private func nextActivityDate(for task: TaskItem) -> Date? {
-        guard task.deadlineKind == .continuous else { return nil }
-
-        let startOfToday = Calendar.current.startOfDay(for: .now)
-
-        return generatedTasks
-            .filter { generatedTask in
-                generatedTask.parentTaskID == task.id
-                    && generatedTask.scheduledDate >= startOfToday
-                    && !generatedTask.isCompleted
-            }
-            .map(\.scheduledDate)
-            .min()
+private extension View {
+    func listRowStyle() -> some View {
+        self
+            .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
     }
 }
 

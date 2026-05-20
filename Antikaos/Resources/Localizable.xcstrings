@@ -396,13 +396,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Intensity"
+            "value" : "Your consistency"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Intensidade"
+            "value" : "Sua consistência"
           }
         }
       }
@@ -784,6 +784,23 @@
         }
       }
     },
+    "task.card.undoCompletion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undo completion"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desconfirmar atividade"
+          }
+        }
+      }
+    },
     "task.card.delete" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -848,6 +865,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Editar deadline"
+          }
+        }
+      }
+    },
+    "task.status.delayed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "delayed"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "atrasado"
+          }
+        }
+      }
+    },
+    "task.status.onTime" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "on time"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "em dia"
           }
         }
       }
@@ -1402,13 +1453,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Completed"
+            "value" : "Expired"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Concluídas"
+            "value" : "Expiradas"
           }
         }
       }

@@ -42,6 +42,15 @@ struct EditTaskView: View {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && deadlineKind != nil
             && (deadlineKind != .continuous || !recurrences.isEmpty)
+            && (deadlineKind != .punctual || totalSessions <= maxPunctualSessions)
+    }
+
+    private var maxPunctualSessions: Int {
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: .now)
+        let deadlineDay = calendar.startOfDay(for: deadlineDate)
+        let daysBeforeDeadline = calendar.dateComponents([.day], from: startOfToday, to: deadlineDay).day ?? 0
+        return max(daysBeforeDeadline, 1)
     }
 
     var body: some View {
@@ -112,7 +121,7 @@ struct EditTaskView: View {
                                     stepperRow(
                                         title: AppStrings.localized("task.field.totalSessions"),
                                         value: $totalSessions,
-                                        range: 1...20
+                                        range: 1...maxPunctualSessions
                                     )
 
                                     Divider()
@@ -158,6 +167,10 @@ struct EditTaskView: View {
                             }
                             .tint(AppTheme.primaryChaos)
                             .foregroundStyle(Color.black)
+                            .onChange(of: deadlineDate) { _, _ in
+                                totalSessions = min(totalSessions, maxPunctualSessions)
+                                completedSessions = min(completedSessions, totalSessions)
+                            }
                         }
 
                         inputCard {
@@ -179,6 +192,10 @@ struct EditTaskView: View {
             }
             .navigationTitle(viewTitle)
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                totalSessions = min(totalSessions, maxPunctualSessions)
+                completedSessions = min(completedSessions, totalSessions)
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(AppStrings.localized("common.cancel")) {
@@ -209,13 +226,34 @@ struct EditTaskView: View {
 
             Spacer()
 
-            Stepper(value: value, in: range) {
+            HStack(spacing: 10) {
+                Button {
+                    value.wrappedValue = max(value.wrappedValue - 1, range.lowerBound)
+                } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(Color.black)
+                }
+                .buttonStyle(.plain)
+                .disabled(value.wrappedValue <= range.lowerBound)
+                .opacity(value.wrappedValue <= range.lowerBound ? 0.35 : 1)
+
                 Text(AppStrings.integerValue(value.wrappedValue))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppTheme.primaryText)
                     .frame(minWidth: 28, alignment: .trailing)
+
+                Button {
+                    value.wrappedValue = min(value.wrappedValue + 1, range.upperBound)
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(Color.black)
+                }
+                .buttonStyle(.plain)
+                .disabled(value.wrappedValue >= range.upperBound)
+                .opacity(value.wrappedValue >= range.upperBound ? 0.35 : 1)
             }
-            .tint(AppTheme.primaryChaos)
         }
         .onChange(of: totalSessions) { _, newValue in
             completedSessions = min(completedSessions, newValue)
