@@ -14,11 +14,17 @@ struct EditTaskView: View {
     @State private var completedSessions: Int
     @State private var dedicationMinutes: Int
     @State private var deadlineDate: Date
+    @State private var draftDeadlineDate: Date
+    @State private var isEditingDeadlineDate = false
     @State private var notes: String
+    @State private var draftNotes: String
+    @State private var isEditingNotes = false
 
     init(task: TaskItem? = nil, onSave: @escaping (TaskFormData) -> Void) {
         self.task = task
         self.onSave = onSave
+        let initialDeadlineDate = task?.deadlineDate ?? Calendar.current.date(byAdding: .day, value: 5, to: .now) ?? .now
+        let initialNotes = task?.notes ?? ""
         _title = State(initialValue: task?.title ?? "")
         _perceivedDifficulty = State(initialValue: Double(task?.perceivedDifficulty ?? 50))
         _deadlineKind = State(initialValue: task?.deadlineKind)
@@ -26,8 +32,10 @@ struct EditTaskView: View {
         _totalSessions = State(initialValue: max(task?.totalSessions ?? 4, 1))
         _completedSessions = State(initialValue: max(task?.completedSessions ?? 0, 0))
         _dedicationMinutes = State(initialValue: max(task?.dedicationMinutes ?? 30, 0))
-        _deadlineDate = State(initialValue: task?.deadlineDate ?? Calendar.current.date(byAdding: .day, value: 5, to: .now) ?? .now)
-        _notes = State(initialValue: task?.notes ?? "")
+        _deadlineDate = State(initialValue: initialDeadlineDate)
+        _draftDeadlineDate = State(initialValue: initialDeadlineDate)
+        _notes = State(initialValue: initialNotes)
+        _draftNotes = State(initialValue: initialNotes)
     }
 
     private var viewTitle: String {
@@ -144,46 +152,11 @@ struct EditTaskView: View {
                         }
 
                         inputCard {
-                            VStack(spacing: 16) {
-                                DatePicker(
-                                    AppStrings.localized("task.field.deadline"),
-                                    selection: $deadlineDate,
-                                    displayedComponents: [.date]
-                                )
-                                .datePickerStyle(.graphical)
-                                .foregroundStyle(Color.black)
-                                .environment(\.colorScheme, .light)
-
-                                Divider()
-
-                                DatePicker(
-                                    AppStrings.localized("task.field.deadlineTime"),
-                                    selection: $deadlineDate,
-                                    displayedComponents: [.hourAndMinute]
-                                )
-                                .datePickerStyle(.compact)
-                                .foregroundStyle(Color.black)
-                                .environment(\.colorScheme, .light)
-                            }
-                            .tint(AppTheme.primaryChaos)
-                            .foregroundStyle(Color.black)
-                            .onChange(of: deadlineDate) { _, _ in
-                                totalSessions = min(totalSessions, maxPunctualSessions)
-                                completedSessions = min(completedSessions, totalSessions)
-                            }
+                            deadlineDateSection
                         }
 
                         inputCard {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text(AppStrings.localized("task.field.notes"))
-                                    .font(.footnote.weight(.medium))
-                                    .foregroundStyle(AppTheme.secondaryText)
-
-                                TextEditor(text: $notes)
-                                    .frame(minHeight: 120)
-                                    .scrollContentBackground(.hidden)
-                                    .foregroundStyle(AppTheme.primaryText)
-                            }
+                            notesSection
                         }
                     }
                     .padding(.horizontal, 20)
@@ -258,6 +231,215 @@ struct EditTaskView: View {
         .onChange(of: totalSessions) { _, newValue in
             completedSessions = min(completedSessions, newValue)
         }
+    }
+
+    private var deadlineDateSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(AppStrings.localized("task.field.deadline"))
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(AppTheme.secondaryText)
+
+                Spacer()
+
+                deadlineDateSaveButton
+                deadlineDateEditButton
+            }
+
+            if isEditingDeadlineDate {
+                VStack(spacing: 16) {
+                    DatePicker(
+                        AppStrings.localized("task.field.deadline"),
+                        selection: $draftDeadlineDate,
+                        displayedComponents: [.date]
+                    )
+                    .datePickerStyle(.graphical)
+                    .foregroundStyle(Color.black)
+                    .environment(\.colorScheme, .light)
+
+                    Divider()
+
+                    DatePicker(
+                        AppStrings.localized("task.field.deadlineTime"),
+                        selection: $draftDeadlineDate,
+                        displayedComponents: [.hourAndMinute]
+                    )
+                    .datePickerStyle(.compact)
+                    .foregroundStyle(Color.black)
+                    .environment(\.colorScheme, .light)
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            } else {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(deadlineDateDisplay)
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(Color.black)
+
+                        Text(deadlineTimeDisplay)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(AppTheme.secondaryText)
+                    }
+
+                    Spacer()
+                }
+                .padding(.vertical, 2)
+            }
+        }
+        .tint(AppTheme.primaryChaos)
+        .foregroundStyle(Color.black)
+    }
+
+    private var deadlineDateSaveButton: some View {
+        Group {
+            if isEditingDeadlineDate {
+                Button {
+                    applyDraftDeadlineDate()
+
+                    withAnimation(.snappy(duration: 0.22)) {
+                        isEditingDeadlineDate = false
+                    }
+                } label: {
+                    Text(AppStrings.localized("common.save"))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.white)
+                        .padding(.horizontal, 14)
+                        .frame(height: 36)
+                        .background(
+                            Capsule()
+                                .fill(AppTheme.primaryChaos)
+                        )
+                }
+                .buttonStyle(.plain)
+                .transition(.opacity.combined(with: .scale(scale: 0.92)))
+                .accessibilityLabel(AppStrings.localized("common.save"))
+            }
+        }
+    }
+
+    private var deadlineDateEditButton: some View {
+        Button {
+            withAnimation(.snappy(duration: 0.22)) {
+                if isEditingDeadlineDate {
+                    draftDeadlineDate = deadlineDate
+                    isEditingDeadlineDate = false
+                } else {
+                    draftDeadlineDate = deadlineDate
+                    isEditingDeadlineDate = true
+                }
+            }
+        } label: {
+            Image(systemName: "pencil")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(isEditingDeadlineDate ? Color.white : AppTheme.primaryText)
+                .frame(width: 36, height: 36)
+                .background(
+                    Circle()
+                        .fill(isEditingDeadlineDate ? AppTheme.primaryChaos : Color.white.opacity(0.72))
+                        .overlay {
+                            Circle()
+                                .stroke(AppTheme.primaryText.opacity(0.12), lineWidth: 1)
+                        }
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isEditingDeadlineDate ? "Cancelar edição da data" : "Editar data")
+    }
+
+    private func applyDraftDeadlineDate() {
+        deadlineDate = draftDeadlineDate
+        totalSessions = min(totalSessions, maxPunctualSessions)
+        completedSessions = min(completedSessions, totalSessions)
+    }
+
+    private var notesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(AppStrings.localized("task.field.notes"))
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(AppTheme.secondaryText)
+
+                Spacer()
+
+                notesSaveButton
+                notesEditButton
+            }
+
+            if isEditingNotes {
+                TextEditor(text: $draftNotes)
+                    .frame(minHeight: 120)
+                    .scrollContentBackground(.hidden)
+                    .foregroundStyle(AppTheme.primaryText)
+                    .padding(8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.white.opacity(0.46))
+                    )
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            } else {
+                Text(notesDisplay)
+                    .font(.subheadline)
+                    .foregroundStyle(notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? AppTheme.secondaryText : AppTheme.primaryText)
+                    .frame(maxWidth: .infinity, minHeight: 42, alignment: .topLeading)
+                    .padding(.vertical, 2)
+            }
+        }
+    }
+
+    private var notesSaveButton: some View {
+        Group {
+            if isEditingNotes {
+                Button {
+                    notes = draftNotes
+
+                    withAnimation(.snappy(duration: 0.22)) {
+                        isEditingNotes = false
+                    }
+                } label: {
+                    Text(AppStrings.localized("common.save"))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.white)
+                        .padding(.horizontal, 14)
+                        .frame(height: 36)
+                        .background(
+                            Capsule()
+                                .fill(AppTheme.primaryChaos)
+                        )
+                }
+                .buttonStyle(.plain)
+                .transition(.opacity.combined(with: .scale(scale: 0.92)))
+                .accessibilityLabel(AppStrings.localized("common.save"))
+            }
+        }
+    }
+
+    private var notesEditButton: some View {
+        Button {
+            withAnimation(.snappy(duration: 0.22)) {
+                if isEditingNotes {
+                    draftNotes = notes
+                    isEditingNotes = false
+                } else {
+                    draftNotes = notes
+                    isEditingNotes = true
+                }
+            }
+        } label: {
+            Image(systemName: "pencil")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(isEditingNotes ? Color.white : AppTheme.primaryText)
+                .frame(width: 36, height: 36)
+                .background(
+                    Circle()
+                        .fill(isEditingNotes ? AppTheme.primaryChaos : Color.white.opacity(0.72))
+                        .overlay {
+                            Circle()
+                                .stroke(AppTheme.primaryText.opacity(0.12), lineWidth: 1)
+                        }
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isEditingNotes ? "Cancelar edição das notas" : "Editar notas")
     }
 
     private func deadlineKindButton(_ kind: DeadlineKind) -> some View {
@@ -342,6 +524,26 @@ struct EditTaskView: View {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: deadlineDate)
         return calendar.date(from: components) ?? deadlineDate
+    }
+
+    private var deadlineDateDisplay: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.setLocalizedDateFormatFromTemplate("EEEE, d MMMM yyyy")
+        return formatter.string(from: deadlineDate).capitalized
+    }
+
+    private var deadlineTimeDisplay: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter.string(from: deadlineDate)
+    }
+
+    private var notesDisplay: String {
+        let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedNotes.isEmpty ? AppStrings.localized("task.field.notes.empty") : notes
     }
 }
 
