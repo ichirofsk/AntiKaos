@@ -25,40 +25,47 @@ final class modelHorasDisponiveis {
         updatedAt: Date = .now
     ) {
         self.id = id
-        self.domingo = Self.clampedHour(domingo)
-        self.segunda = Self.clampedHour(segunda)
-        self.terca = Self.clampedHour(terca)
-        self.quarta = Self.clampedHour(quarta)
-        self.quinta = Self.clampedHour(quinta)
-        self.sexta = Self.clampedHour(sexta)
-        self.sabado = Self.clampedHour(sabado)
+        self.domingo = Self.hoursToMinutes(domingo)
+        self.segunda = Self.hoursToMinutes(segunda)
+        self.terca = Self.hoursToMinutes(terca)
+        self.quarta = Self.hoursToMinutes(quarta)
+        self.quinta = Self.hoursToMinutes(quinta)
+        self.sexta = Self.hoursToMinutes(sexta)
+        self.sabado = Self.hoursToMinutes(sabado)
         self.updatedAt = updatedAt
     }
 }
 
 extension modelHorasDisponiveis {
-    func horas(for day: AvailableWeekday) -> Int {
+    func minutes(for day: AvailableWeekday) -> Int {
         switch day {
         case .domingo:
-            return domingo
+            return Self.normalizedStoredMinutes(domingo)
         case .segunda:
-            return segunda
+            return Self.normalizedStoredMinutes(segunda)
         case .terca:
-            return terca
+            return Self.normalizedStoredMinutes(terca)
         case .quarta:
-            return quarta
+            return Self.normalizedStoredMinutes(quarta)
         case .quinta:
-            return quinta
+            return Self.normalizedStoredMinutes(quinta)
         case .sexta:
-            return sexta
+            return Self.normalizedStoredMinutes(sexta)
         case .sabado:
-            return sabado
+            return Self.normalizedStoredMinutes(sabado)
         }
     }
 
-    func setHoras(_ value: Int, for day: AvailableWeekday) {
-        let clampedValue = Self.clampedHour(value)
+    func horas(for day: AvailableWeekday) -> Int {
+        Int((Double(minutes(for: day)) / 60).rounded())
+    }
 
+    func setHoras(_ value: Int, for day: AvailableWeekday) {
+        setMinutes(Self.hoursToMinutes(value), for: day)
+    }
+
+    func setMinutes(_ value: Int, for day: AvailableWeekday) {
+        let clampedValue = Self.clampedMinutes(value)
         switch day {
         case .domingo:
             domingo = clampedValue
@@ -79,8 +86,38 @@ extension modelHorasDisponiveis {
         updatedAt = .now
     }
 
-    private static func clampedHour(_ value: Int) -> Int {
-        min(max(value, 0), 24)
+    var weeklyTotalMinutes: Int {
+        AvailableWeekday.allCases.reduce(0) { partialResult, day in
+            partialResult + minutes(for: day)
+        }
+    }
+
+    static func formattedTime(minutes: Int) -> String {
+        let clamped = clampedMinutes(minutes)
+        let hours = clamped / 60
+        let mins = clamped % 60
+
+        if mins == 0 {
+            return "\(hours)h"
+        }
+
+        return "\(hours)h \(mins)min"
+    }
+
+    private static func normalizedStoredMinutes(_ value: Int) -> Int {
+        if value <= 24 {
+            return hoursToMinutes(value)
+        }
+
+        return clampedMinutes(value)
+    }
+
+    private static func hoursToMinutes(_ value: Int) -> Int {
+        clampedMinutes(value * 60)
+    }
+
+    private static func clampedMinutes(_ value: Int) -> Int {
+        min(max(value, 0), 24 * 60)
     }
 }
 

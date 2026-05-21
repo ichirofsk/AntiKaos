@@ -377,8 +377,7 @@ struct TaskManager {
 
     private func availableMinutes(on date: Date, availableHours: modelHorasDisponiveis?) -> Int {
         let day = availableWeekday(for: date)
-        let hours = availableHours?.horas(for: day) ?? modelHorasDisponiveis().horas(for: day)
-        return max(hours, 0) * 60
+        return availableHours?.minutes(for: day) ?? modelHorasDisponiveis().minutes(for: day)
     }
 
     private func deadlineDeliveryReserveMinutes(on date: Date, tasks: [TaskItem]) -> Int {

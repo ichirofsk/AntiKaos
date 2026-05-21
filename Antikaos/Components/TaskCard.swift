@@ -32,7 +32,7 @@ struct TaskCard: View {
             HStack(alignment: .top, spacing: 16) {
                 VStack(alignment: .leading, spacing: 16) {
                     Text(deadlineDateLabel)
-                        .font(.title2.weight(.semibold))
+                        .font(AppTheme.schoolbell(26))
                         .foregroundStyle(AppTheme.primaryText)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
@@ -49,7 +49,7 @@ struct TaskCard: View {
                     HStack(alignment: .top, spacing: 12) {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(task.title)
-                                .font(.title3.weight(.bold))
+                                .font(AppTheme.schoolbell(24))
                                 .foregroundStyle(AppTheme.primaryText)
                                 .lineLimit(2)
                                 .minimumScaleFactor(0.82)
@@ -79,7 +79,7 @@ struct TaskCard: View {
                             onCompleteSession()
                         } label: {
                             Text(AppStrings.localized("task.card.confirmActivity"))
-                                .font(.subheadline.weight(.semibold))
+                                .font(AppTheme.schoolbell(18))
                                 .foregroundStyle(Color.white)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 8)
@@ -89,6 +89,7 @@ struct TaskCard: View {
                                 )
                         }
                         .buttonStyle(.plain)
+                        .padding(.top, 8)
                         .accessibilityLabel(AppStrings.localized("task.card.completeSession"))
                         .symbolEffect(.bounce, value: didTriggerSessionAnimation)
                     }
@@ -106,21 +107,21 @@ struct TaskCard: View {
                 .fill(difficultyColor)
                 .frame(width: 58, height: 58)
                 .overlay {
-                    Text("\(task.perceivedDifficulty)")
-                        .font(.title2.weight(.medium))
+                Text("\(task.perceivedDifficulty)")
+                        .font(AppTheme.schoolbell(24))
                         .foregroundStyle(AppTheme.primaryText)
                         .contentTransition(.numericText(value: Double(task.perceivedDifficulty)))
                 }
 
             Text(AppStrings.localized("task.card.difficulty"))
-                .font(.caption2.weight(.medium))
+                .font(AppTheme.schoolbell(14))
                 .foregroundStyle(AppTheme.secondaryText)
         }
     }
 
     private var delayTag: some View {
         Text(statusLabel)
-            .font(.caption.weight(.semibold))
+            .font(AppTheme.schoolbell(16))
             .foregroundStyle(statusColor)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
@@ -135,7 +136,7 @@ struct TaskCard: View {
             Spacer(minLength: 8)
 
             Text(AppStrings.sessionsValue(completed: task.completedSessions, total: max(task.tasksQuantity, 1)))
-                .font(.caption.weight(.bold))
+                .font(AppTheme.schoolbell(16))
                 .foregroundStyle(statusTextColor)
                 .contentTransition(.numericText(value: Double(task.completedSessions)))
         }

@@ -7,6 +7,9 @@ struct DashboardView: View {
     @Query(sort: \TaskItem.deadlineDate) private var tasks: [TaskItem]
     @Query(sort: \GeneratedTaskItem.scheduledDate) private var generatedTasks: [GeneratedTaskItem]
     @State private var currentDate = Date.now
+    @State private var isTodoExpanded = false
+    @State private var isShowingChaosInfo = false
+    @State private var isShowingTodayTodo = false
 
     let onOpenFocusMode: () -> Void
 
@@ -59,6 +62,10 @@ struct DashboardView: View {
         let pendingCount = todayFocus.count - completedCount
 
         return Array(repeating: true, count: completedCount) + Array(repeating: false, count: pendingCount)
+    }
+
+    private var pendingTodayTasks: [TodayTodoEntry] {
+        todayFocus.filter { !$0.isCompleted }
     }
 
     private var weeklyPoints: [WeeklyIntensityPoint] {
@@ -128,7 +135,14 @@ struct DashboardView: View {
                 .padding(.bottom, 28)
             }
         }
+        .scribbleBackground()
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(isPresented: $isShowingTodayTodo) {
+            TodayTodoView()
+        }
+        .alert("O caos combina dificuldade, tempo restante e progresso para mostrar como sua rotina está agora.", isPresented: $isShowingChaosInfo) {
+            Button("OK", role: .cancel) {}
+        }
         .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { date in
             currentDate = date
         }
@@ -139,42 +153,88 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: 6) {
                 if !greetingName.isEmpty {
                     Text("Olá, \(greetingName)")
-                        .font(.largeTitle.weight(.bold))
-                        .foregroundStyle(Color.black)
+                        .font(AppTheme.schoolbell(34))
+                        .foregroundStyle(AppTheme.primaryText)
                 }
 
                 Text(AppStrings.headerDate(.now))
-                    .font(.subheadline)
+                    .font(AppTheme.schoolbell(20))
                     .foregroundStyle(AppTheme.secondaryText)
             }
         }
     }
 
     private var overviewCard: some View {
-        VStack {
-            ChaosCircle(value: overallChaos)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Spacer()
+
+                Button {
+                    isShowingChaosInfo = true
+                } label: {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 18, weight: .regular))
+                        .foregroundStyle(AppTheme.primaryChaos)
+                }
+                .buttonStyle(.plain)
+            }
+
+            HStack {
+                Spacer()
+                ChaosCircle(value: overallChaos)
+                Spacer()
+            }
         }
         .frame(maxWidth: .infinity)
-        .softCard()
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onOpenFocusMode)
     }
 
     private var todoCard: some View {
-        NavigationLink {
-            TodayTodoView()
-        } label: {
-            VStack(alignment: .leading, spacing: 16) {
-                Text(AppStrings.localized("dashboard.todo"))
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Color.black)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Button {
+                    isShowingTodayTodo = true
+                } label: {
+                    Text(AppStrings.localized("dashboard.todo"))
+                        .font(AppTheme.schoolbell(28))
+                        .foregroundStyle(AppTheme.primaryText)
+                }
+                .buttonStyle(.plain)
 
-                if todayFocus.isEmpty {
-                    Text(AppStrings.localized("dashboard.todo.empty"))
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.secondaryText)
+                Spacer()
+
+                Button {
+                    withAnimation(.snappy(duration: 0.24)) {
+                        isTodoExpanded.toggle()
+                    }
+                } label: {
+                    Image(systemName: isTodoExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(AppTheme.primaryChaos)
+                }
+                .buttonStyle(.plain)
+            }
+
+            if todayFocus.isEmpty {
+                Text(AppStrings.localized("dashboard.todo.empty"))
+                    .font(AppTheme.schoolbell(16))
+                    .foregroundStyle(AppTheme.secondaryText)
+            } else {
+                if isTodoExpanded {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(pendingTodayTasks) { task in
+                            HStack(spacing: 10) {
+                                TodoStatusDot(isCompleted: task.isCompleted)
+                                Text(task.title)
+                                    .font(AppTheme.schoolbell(18))
+                                    .foregroundStyle(AppTheme.primaryText)
+                                    .multilineTextAlignment(.leading)
+                                Spacer()
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
-                    LazyVGrid(columns: todoDotColumns, alignment: .leading, spacing: 10) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 10, maximum: 10), spacing: 10, alignment: .leading)], alignment: .leading, spacing: 10) {
                         ForEach(Array(todayDotStatuses.enumerated()), id: \.offset) { _, isCompleted in
                             TodoStatusDot(isCompleted: isCompleted)
                         }
@@ -182,15 +242,8 @@ struct DashboardView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
         .softCard()
-    }
-
-    private var todoDotColumns: [GridItem] {
-        [GridItem(.adaptive(minimum: 10, maximum: 10), spacing: 10, alignment: .leading)]
     }
 
     private func starCount(completedTasks: Int, totalTasks: Int) -> Int {
@@ -213,8 +266,8 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center) {
                 Text(AppStrings.localized("dashboard.weekly"))
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Color.black)
+                    .font(AppTheme.schoolbell(28))
+                    .foregroundStyle(AppTheme.primaryText)
 
                 Spacer(minLength: 12)
 
@@ -223,7 +276,7 @@ struct DashboardView: View {
                         .font(.system(size: 16, weight: .bold))
 
                     Text("\(noDelayStreak)")
-                        .font(.subheadline.weight(.bold))
+                        .font(AppTheme.schoolbell(18))
                 }
                 .foregroundStyle(AppTheme.primaryChaos)
                 .padding(.horizontal, 10)
@@ -311,19 +364,19 @@ private struct TodayTodoView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 14) {
                     Text("To-do")
-                        .font(.largeTitle.weight(.bold))
-                        .foregroundStyle(Color.black)
+                        .font(AppTheme.schoolbell(34))
+                        .foregroundStyle(AppTheme.primaryText)
                         .padding(.horizontal, 4)
 
                     if tasks.isEmpty {
                         Text(emptyTodoMessage)
-                            .font(.subheadline)
+                            .font(AppTheme.schoolbell(16))
                             .foregroundStyle(AppTheme.secondaryText)
                             .softCard()
                     } else {
                         if didCompleteMission {
                             Text(AppStrings.localized("dashboard.todo.missionComplete"))
-                                .font(.title3.weight(.semibold))
+                                .font(AppTheme.schoolbell(24))
                                 .foregroundStyle(AppTheme.supportGreen)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .softCard()
@@ -353,11 +406,11 @@ private struct TodayTodoView: View {
 
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(task.title)
-                                            .font(.subheadline.weight(.medium))
+                                            .font(AppTheme.schoolbell(18))
                                             .foregroundStyle(AppTheme.primaryText)
 
                                         Text(AppStrings.deadlineRelativeString(for: task.date))
-                                            .font(.caption)
+                                            .font(AppTheme.schoolbell(14))
                                             .foregroundStyle(AppTheme.secondaryText)
                                     }
 

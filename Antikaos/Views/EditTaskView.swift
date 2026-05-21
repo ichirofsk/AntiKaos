@@ -71,11 +71,18 @@ struct EditTaskView: View {
                         inputCard {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(AppStrings.localized("task.field.title"))
-                                    .font(.footnote.weight(.medium))
+                                    .font(AppTheme.schoolbell(16))
                                     .foregroundStyle(AppTheme.secondaryText)
 
-                                TextField("", text: $title, prompt: Text(AppStrings.localized("task.placeholder.title")))
+                                TextField(
+                                    "",
+                                    text: $title,
+                                    prompt: Text(AppStrings.localized("task.placeholder.title"))
+                                        .font(AppTheme.schoolbell(18))
+                                        .foregroundStyle(AppTheme.secondaryText)
+                                )
                                     .textInputAutocapitalization(.sentences)
+                                    .font(AppTheme.schoolbell(18))
                                     .foregroundStyle(AppTheme.primaryText)
                             }
                         }
@@ -84,13 +91,13 @@ struct EditTaskView: View {
                             VStack(alignment: .leading, spacing: 12) {
                                 HStack {
                                     Text(AppStrings.localized("task.field.difficulty"))
-                                        .font(.footnote.weight(.medium))
+                                        .font(AppTheme.schoolbell(16))
                                         .foregroundStyle(AppTheme.secondaryText)
 
                                     Spacer()
 
                                     Text(AppStrings.integerValue(Int(perceivedDifficulty.rounded())))
-                                        .font(.subheadline.weight(.semibold))
+                                        .font(AppTheme.schoolbell(18))
                                         .foregroundStyle(AppTheme.primaryText)
                                         .contentTransition(.numericText(value: perceivedDifficulty))
                                 }
@@ -111,7 +118,7 @@ struct EditTaskView: View {
                             inputCard {
                                 VStack(alignment: .leading, spacing: 12) {
                                     Text(AppStrings.localized("task.field.recurrence"))
-                                        .font(.footnote.weight(.medium))
+                                        .font(AppTheme.schoolbell(16))
                                         .foregroundStyle(AppTheme.secondaryText)
 
                                     LazyVGrid(columns: recurrenceColumns, spacing: 10) {
@@ -174,12 +181,16 @@ struct EditTaskView: View {
                     Button(AppStrings.localized("common.cancel")) {
                         dismiss()
                     }
+                    .font(AppTheme.schoolbell(18))
+                    .foregroundStyle(AppTheme.primaryChaos)
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button(AppStrings.localized("common.save")) {
                         save()
                     }
+                    .font(AppTheme.schoolbell(18))
+                    .foregroundStyle(canSave ? AppTheme.primaryChaos : AppTheme.secondaryText)
                     .disabled(!canSave)
                 }
             }
@@ -194,7 +205,7 @@ struct EditTaskView: View {
     private func stepperRow(title: String, value: Binding<Int>, range: ClosedRange<Int>) -> some View {
         HStack {
             Text(title)
-                .font(.footnote.weight(.medium))
+                .font(AppTheme.schoolbell(16))
                 .foregroundStyle(AppTheme.secondaryText)
 
             Spacer()
@@ -205,14 +216,14 @@ struct EditTaskView: View {
                 } label: {
                     Image(systemName: "minus.circle.fill")
                         .font(.title3)
-                        .foregroundStyle(Color.black)
+                        .foregroundStyle(AppTheme.primaryChaos)
                 }
                 .buttonStyle(.plain)
                 .disabled(value.wrappedValue <= range.lowerBound)
                 .opacity(value.wrappedValue <= range.lowerBound ? 0.35 : 1)
 
                 Text(AppStrings.integerValue(value.wrappedValue))
-                    .font(.subheadline.weight(.semibold))
+                    .font(AppTheme.schoolbell(18))
                     .foregroundStyle(AppTheme.primaryText)
                     .frame(minWidth: 28, alignment: .trailing)
 
@@ -221,7 +232,7 @@ struct EditTaskView: View {
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.title3)
-                        .foregroundStyle(Color.black)
+                        .foregroundStyle(AppTheme.primaryChaos)
                 }
                 .buttonStyle(.plain)
                 .disabled(value.wrappedValue >= range.upperBound)
@@ -237,7 +248,7 @@ struct EditTaskView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .firstTextBaseline) {
                 Text(AppStrings.localized("task.field.deadline"))
-                    .font(.footnote.weight(.medium))
+                    .font(AppTheme.schoolbell(16))
                     .foregroundStyle(AppTheme.secondaryText)
 
                 Spacer()
@@ -273,11 +284,11 @@ struct EditTaskView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(deadlineDateDisplay)
-                            .font(.headline.weight(.semibold))
+                            .font(AppTheme.schoolbell(20))
                             .foregroundStyle(Color.black)
 
                         Text(deadlineTimeDisplay)
-                            .font(.subheadline.weight(.medium))
+                            .font(AppTheme.schoolbell(18))
                             .foregroundStyle(AppTheme.secondaryText)
                     }
 
@@ -301,7 +312,7 @@ struct EditTaskView: View {
                     }
                 } label: {
                     Text(AppStrings.localized("common.save"))
-                        .font(.subheadline.weight(.semibold))
+                        .font(AppTheme.schoolbell(18))
                         .foregroundStyle(Color.white)
                         .padding(.horizontal, 14)
                         .frame(height: 36)
@@ -331,7 +342,7 @@ struct EditTaskView: View {
         } label: {
             Image(systemName: "pencil")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(isEditingDeadlineDate ? Color.white : AppTheme.primaryText)
+                .foregroundStyle(isEditingDeadlineDate ? Color.white : AppTheme.primaryChaos)
                 .frame(width: 36, height: 36)
                 .background(
                     Circle()
@@ -356,7 +367,7 @@ struct EditTaskView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 Text(AppStrings.localized("task.field.notes"))
-                    .font(.footnote.weight(.medium))
+                    .font(AppTheme.schoolbell(16))
                     .foregroundStyle(AppTheme.secondaryText)
 
                 Spacer()
@@ -367,6 +378,7 @@ struct EditTaskView: View {
 
             if isEditingNotes {
                 TextEditor(text: $draftNotes)
+                    .font(AppTheme.schoolbell(18))
                     .frame(minHeight: 120)
                     .scrollContentBackground(.hidden)
                     .foregroundStyle(AppTheme.primaryText)
@@ -378,7 +390,7 @@ struct EditTaskView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.98)))
             } else {
                 Text(notesDisplay)
-                    .font(.subheadline)
+                    .font(AppTheme.schoolbell(18))
                     .foregroundStyle(notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? AppTheme.secondaryText : AppTheme.primaryText)
                     .frame(maxWidth: .infinity, minHeight: 42, alignment: .topLeading)
                     .padding(.vertical, 2)
@@ -397,7 +409,7 @@ struct EditTaskView: View {
                     }
                 } label: {
                     Text(AppStrings.localized("common.save"))
-                        .font(.subheadline.weight(.semibold))
+                        .font(AppTheme.schoolbell(18))
                         .foregroundStyle(Color.white)
                         .padding(.horizontal, 14)
                         .frame(height: 36)
@@ -427,7 +439,7 @@ struct EditTaskView: View {
         } label: {
             Image(systemName: "pencil")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(isEditingNotes ? Color.white : AppTheme.primaryText)
+                .foregroundStyle(isEditingNotes ? Color.white : AppTheme.primaryChaos)
                 .frame(width: 36, height: 36)
                 .background(
                     Circle()
@@ -447,7 +459,7 @@ struct EditTaskView: View {
             deadlineKind = kind
         } label: {
             Text(AppStrings.localized(kind == .continuous ? "task.kind.continuous" : "task.kind.punctual"))
-                .font(.subheadline.weight(.semibold))
+                .font(AppTheme.schoolbell(20))
                 .foregroundStyle(deadlineKind == kind ? Color.white : AppTheme.primaryText)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
@@ -473,7 +485,7 @@ struct EditTaskView: View {
             toggleRecurrence(recurrenceOption)
         } label: {
             Text(AppStrings.localized(recurrenceOption.titleKey))
-                .font(.footnote.weight(.semibold))
+                .font(AppTheme.schoolbell(16))
                 .foregroundStyle(isSelected ? Color.white : AppTheme.primaryText)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)

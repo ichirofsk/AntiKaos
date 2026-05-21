@@ -30,6 +30,16 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		7C0504A82FBE769D00C7D230 /* Utilities */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		7C0504AD2FBE76B900C7D230 /* Licenses */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Licenses;
+			sourceTree = "<group>";
+		};
 		7C05FE842FB7E26000C7D230 /* Antikaos */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Antikaos;
@@ -75,6 +85,8 @@
 		7C05FE792FB7E26000C7D230 = {
 			isa = PBXGroup;
 			children = (
+				7C0504AD2FBE76B900C7D230 /* Licenses */,
+				7C0504A82FBE769D00C7D230 /* Utilities */,
 				7C05FE842FB7E26000C7D230 /* Antikaos */,
 				7C05FE942FB7E26200C7D230 /* AntikaosTests */,
 				7C05FE9E2FB7E26200C7D230 /* AntikaosUITests */,
@@ -108,6 +120,8 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
+				7C0504A82FBE769D00C7D230 /* Utilities */,
+				7C0504AD2FBE76B900C7D230 /* Licenses */,
 				7C05FE842FB7E26000C7D230 /* Antikaos */,
 			);
 			name = Antikaos;
@@ -401,6 +415,7 @@
 				DEVELOPMENT_TEAM = 63G362PW6F;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIAppFonts = "Schoolbell-Regular.ttf";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -434,6 +449,7 @@
 				DEVELOPMENT_TEAM = 63G362PW6F;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIAppFonts = "Schoolbell-Regular.ttf";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

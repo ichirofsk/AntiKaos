@@ -119,8 +119,8 @@ struct CalendarView: View {
             Spacer()
 
             Text(monthLabel)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(Color.black)
+                .font(AppTheme.schoolbell(24))
+                .foregroundStyle(AppTheme.primaryText)
 
             Spacer()
 
@@ -144,7 +144,7 @@ struct CalendarView: View {
         return HStack {
             ForEach(symbols, id: \.self) { symbol in
                 Text(symbol)
-                    .font(.caption.weight(.medium))
+                    .font(AppTheme.schoolbell(14))
                     .foregroundStyle(AppTheme.secondaryText)
                     .frame(maxWidth: .infinity)
             }
@@ -161,7 +161,7 @@ struct CalendarView: View {
                     } label: {
                         VStack(spacing: 6) {
                             Text("\(calendar.component(.day, from: date))")
-                                .font(.subheadline.weight(.medium))
+                                .font(AppTheme.schoolbell(18))
                                 .foregroundStyle(isSelected(date) ? Color.white : AppTheme.primaryText)
 
                             Circle()
@@ -183,12 +183,12 @@ struct CalendarView: View {
     private var planCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(AppStrings.planHeader(for: selectedDate))
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(Color.black)
+                .font(AppTheme.schoolbell(24))
+                .foregroundStyle(AppTheme.primaryText)
 
             if selectedDayPlanEntries.isEmpty {
                 Text(AppStrings.localized("calendar.empty"))
-                    .font(.subheadline)
+                    .font(AppTheme.schoolbell(16))
                     .foregroundStyle(AppTheme.secondaryText)
             } else {
                 ForEach(selectedDayPlanEntries) { entry in
@@ -199,29 +199,29 @@ struct CalendarView: View {
                             .overlay {
                                 if let chaosScore = entry.chaosScore {
                                     Text("\(chaosScore)")
-                                        .font(.footnote.weight(.semibold))
+                                        .font(AppTheme.schoolbell(16))
                                         .foregroundStyle(entry.tint)
                                 } else {
                                     Image(systemName: "checkmark")
-                                        .font(.footnote.weight(.semibold))
+                                        .font(.system(size: 14, weight: .semibold))
                                         .foregroundStyle(entry.tint)
                                 }
                             }
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text(entry.title)
-                                .font(.subheadline.weight(.medium))
+                                .font(AppTheme.schoolbell(18))
                                 .foregroundStyle(AppTheme.primaryText)
 
                             HStack(spacing: 8) {
                                 if let dedicationMinutes = entry.dedicationMinutes {
                                     Text("\(dedicationMinutes) min")
-                                        .font(.caption.weight(.semibold))
+                                        .font(AppTheme.schoolbell(14))
                                         .foregroundStyle(AppTheme.supportGreen)
                                 }
 
                                 Text(AppStrings.deadlineRelativeString(for: entry.date))
-                                    .font(.caption)
+                                    .font(AppTheme.schoolbell(14))
                                     .foregroundStyle(AppTheme.secondaryText)
                             }
                         }

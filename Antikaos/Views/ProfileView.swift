@@ -44,8 +44,8 @@ struct ProfileView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     Text(profileHeaderTitle)
-                        .font(.largeTitle.weight(.bold))
-                        .foregroundStyle(Color.black)
+                        .font(AppTheme.schoolbell(34))
+                        .foregroundStyle(AppTheme.primaryText)
                         .padding(.horizontal, 4)
 
                     statsSection
@@ -68,8 +68,8 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center) {
                 Text("Nome")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Color.black)
+                    .font(AppTheme.schoolbell(24))
+                    .foregroundStyle(AppTheme.primaryText)
 
                 Spacer()
 
@@ -86,7 +86,7 @@ struct ProfileView: View {
                 } label: {
                     Image(systemName: "pencil")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(isEditingUserName ? Color.white : AppTheme.primaryText)
+                        .foregroundStyle(isEditingUserName ? Color.white : AppTheme.primaryChaos)
                         .frame(width: 36, height: 36)
                         .background(
                             Circle()
@@ -106,7 +106,7 @@ struct ProfileView: View {
                     TextField("Nome", text: $draftUserName)
                         .textInputAutocapitalization(.words)
                         .autocorrectionDisabled()
-                        .font(.subheadline.weight(.medium))
+                        .font(AppTheme.schoolbell(18))
                         .foregroundStyle(Color.black)
                         .padding(.horizontal, 12)
                         .frame(height: 42)
@@ -115,7 +115,7 @@ struct ProfileView: View {
                     Button("Salvar") {
                         saveDraftUserName()
                     }
-                    .font(.subheadline.weight(.semibold))
+                    .font(AppTheme.schoolbell(18))
                     .foregroundStyle(Color.white)
                     .frame(height: 42)
                     .padding(.horizontal, 14)
@@ -127,7 +127,7 @@ struct ProfileView: View {
                 }
             } else {
                 Text(userName.trimmingCharacters(in: .whitespacesAndNewlines))
-                    .font(.subheadline.weight(.medium))
+                    .font(AppTheme.schoolbell(20))
                     .foregroundStyle(AppTheme.primaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -161,11 +161,11 @@ struct ProfileView: View {
         HStack {
             VStack(alignment: .leading, spacing: 6) {
                 Text(title)
-                    .font(.subheadline)
-                    .foregroundStyle(Color.black)
+                    .font(AppTheme.schoolbell(18))
+                    .foregroundStyle(AppTheme.primaryText)
 
                 Text(value)
-                    .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    .font(AppTheme.schoolbell(28))
                     .foregroundStyle(AppTheme.primaryText)
             }
 
@@ -196,12 +196,12 @@ struct ProfileView: View {
     private var historySection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(AppStrings.localized("history.title"))
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(Color.black)
+                .font(AppTheme.schoolbell(24))
+                .foregroundStyle(AppTheme.primaryText)
 
             if historyEntries.isEmpty {
                 Text(AppStrings.localized("history.empty"))
-                    .font(.subheadline)
+                    .font(AppTheme.schoolbell(16))
                     .foregroundStyle(AppTheme.secondaryText)
                     .softCard()
             } else {
@@ -213,11 +213,11 @@ struct ProfileView: View {
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text(entry.message)
-                                .font(.subheadline.weight(.medium))
+                                .font(AppTheme.schoolbell(18))
                                 .foregroundStyle(AppTheme.primaryText)
 
                             Text(AppStrings.historyDate(entry.date))
-                                .font(.caption)
+                                .font(AppTheme.schoolbell(14))
                                 .foregroundStyle(AppTheme.secondaryText)
                         }
 
@@ -251,7 +251,7 @@ struct ProfileView: View {
         case .taskCreated:
             return AppTheme.primaryChaos
         case .taskEdited:
-            return AppTheme.primaryText
+            return AppTheme.primaryChaos
         case .sessionCompleted:
             return AppTheme.supportGreen
         case .taskCompleted:
@@ -296,7 +296,8 @@ struct AvailableHoursCard: View {
     let onChange: () -> Void
     var showsHeader = true
     var allowsEditingToggle = true
-    @State private var draftHours: [AvailableWeekday: Int] = [:]
+    @State private var draftMinutes: [AvailableWeekday: Int] = [:]
+    @State private var pickerDay: AvailableWeekday?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -304,48 +305,67 @@ struct AvailableHoursCard: View {
                 header
             }
 
-            GeometryReader { proxy in
-                let metrics = AvailableHoursLayoutMetrics(width: proxy.size.width)
-
-                HStack(alignment: .top, spacing: metrics.columnSpacing) {
-                    ForEach(AvailableWeekday.allCases) { day in
-                        VStack(spacing: metrics.daySpacing) {
-                            Text(day.shortTitle)
-                                .font(.system(size: metrics.labelFontSize, weight: .medium))
-                                .foregroundStyle(Color.black)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.7)
-                                .frame(width: metrics.dayColumnWidth)
-
-                            AvailableHoursSlider(
-                                value: displayedHours(for: day),
-                                isEditing: isEditing,
-                                trackHeight: metrics.trackHeight,
-                                fillWidth: metrics.sliderWidth
-                            ) { value in
-                                draftHours[day] = min(max(value, 0), 24)
-                            }
+            VStack(spacing: 16) {
+                ForEach(AvailableWeekday.allCases) { day in
+                    Button {
+                        if isEditing {
+                            pickerDay = day
                         }
-                        .frame(width: metrics.dayColumnWidth)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Text(day.shortTitle.capitalized)
+                                .font(AppTheme.schoolbell(20))
+                                .foregroundStyle(AppTheme.primaryText)
+                                .frame(width: 44, alignment: .leading)
+
+                            Slider(
+                                value: Binding(
+                                    get: { Double(displayedMinutes(for: day)) },
+                                    set: { draftMinutes[day] = snappedMinutes(Int($0.rounded())) }
+                                ),
+                                in: 0...480,
+                                step: 15
+                            )
+                            .tint(AppTheme.primaryChaos)
+                            .disabled(!isEditing)
+
+                            Text(modelHorasDisponiveis.formattedTime(minutes: displayedMinutes(for: day)))
+                                .font(AppTheme.schoolbell(18))
+                                .foregroundStyle(AppTheme.primaryChaos)
+                                .frame(width: 82, alignment: .trailing)
+                        }
                     }
+                    .buttonStyle(.plain)
                 }
-                .frame(maxWidth: .infinity, alignment: .center)
+
+                HStack(spacing: 14) {
+                    Circle()
+                        .fill(Color.white.opacity(0.6))
+                        .frame(width: 52, height: 52)
+                        .overlay {
+                            Image(systemName: "clock")
+                                .font(.system(size: 22, weight: .regular))
+                                .foregroundStyle(AppTheme.primaryChaos)
+                        }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Total semanal")
+                            .font(AppTheme.schoolbell(18))
+                            .foregroundStyle(AppTheme.secondaryText)
+
+                        Text(modelHorasDisponiveis.formattedTime(minutes: weeklyTotalMinutes))
+                            .font(AppTheme.schoolbell(24))
+                            .foregroundStyle(AppTheme.primaryChaos)
+                    }
+
+                    Spacer()
+                }
             }
-            .frame(height: AvailableHoursLayoutMetrics.panelHeight)
-            .padding(.horizontal, 10)
-            .padding(.top, 18)
-            .padding(.bottom, 10)
+            .padding(18)
             .background(
-                RoundedRectangle(cornerRadius: 34, style: .continuous)
-                    .fill(Color.white)
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(Color.white.opacity(0.45))
             )
-            .overlay(alignment: .topTrailing) {
-                if !isEditing {
-                    RoundedRectangle(cornerRadius: 34, style: .continuous)
-                        .fill(Color.white.opacity(0.12))
-                        .allowsHitTesting(false)
-                }
-            }
 
             if !showsHeader {
                 HStack {
@@ -355,13 +375,51 @@ struct AvailableHoursCard: View {
             }
         }
         .onAppear(perform: resetDraftHours)
+        .sheet(item: $pickerDay) { day in
+            VStack(spacing: 10) {
+                HStack {
+                    Button("Cancelar") {
+                        pickerDay = nil
+                    }
+                    .font(AppTheme.schoolbell(18))
+                    .foregroundStyle(AppTheme.primaryChaos)
+
+                    Spacer()
+
+                    Text(day.shortTitle.capitalized)
+                        .font(AppTheme.schoolbell(24))
+
+                    Spacer()
+
+                    Button("Salvar") {
+                        pickerDay = nil
+                    }
+                    .font(AppTheme.schoolbell(18))
+                    .foregroundStyle(AppTheme.primaryChaos)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+
+                Picker("Horas", selection: Binding(
+                    get: { displayedMinutes(for: day) },
+                    set: { draftMinutes[day] = snappedMinutes($0) }
+                )) {
+                    ForEach(stride(from: 0, through: 480, by: 15).map { $0 }, id: \.self) { minutes in
+                        Text(modelHorasDisponiveis.formattedTime(minutes: minutes))
+                            .tag(minutes)
+                    }
+                }
+                .pickerStyle(.wheel)
+            }
+            .presentationDetents([.height(320)])
+        }
     }
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
             Text("Meu tempo disponível:")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(Color.black)
+                .font(AppTheme.schoolbell(24))
+                .foregroundStyle(AppTheme.primaryText)
 
             Spacer()
 
@@ -385,7 +443,7 @@ struct AvailableHoursCard: View {
                     }
                 } label: {
                     Text("Salvar")
-                        .font(.subheadline.weight(.semibold))
+                        .font(AppTheme.schoolbell(18))
                         .foregroundStyle(Color.white)
                         .padding(.horizontal, 14)
                         .frame(height: 36)
@@ -415,7 +473,7 @@ struct AvailableHoursCard: View {
         } label: {
             Image(systemName: "pencil")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(isEditing ? Color.white : AppTheme.primaryText)
+                .foregroundStyle(isEditing ? Color.white : AppTheme.primaryChaos)
                 .frame(width: 36, height: 36)
                 .background(
                     Circle()
@@ -430,116 +488,36 @@ struct AvailableHoursCard: View {
         .accessibilityLabel(isEditing ? "Concluir edição do tempo disponível" : "Editar tempo disponível")
     }
 
-    private func displayedHours(for day: AvailableWeekday) -> Int {
+    private func displayedMinutes(for day: AvailableWeekday) -> Int {
         if isEditing {
-            return draftHours[day] ?? availableHours.horas(for: day)
+            return draftMinutes[day] ?? availableHours.minutes(for: day)
         }
 
-        return availableHours.horas(for: day)
+        return availableHours.minutes(for: day)
     }
 
     private func resetDraftHours() {
-        draftHours = Dictionary(
+        draftMinutes = Dictionary(
             uniqueKeysWithValues: AvailableWeekday.allCases.map { day in
-                (day, availableHours.horas(for: day))
+                (day, availableHours.minutes(for: day))
             }
         )
     }
 
     private func applyDraftHours() {
         for day in AvailableWeekday.allCases {
-            availableHours.setHoras(draftHours[day] ?? availableHours.horas(for: day), for: day)
+            availableHours.setMinutes(draftMinutes[day] ?? availableHours.minutes(for: day), for: day)
         }
     }
-}
 
-private struct AvailableHoursLayoutMetrics {
-    static let panelHeight: CGFloat = 218
-
-    let width: CGFloat
-
-    var columnSpacing: CGFloat { width < 360 ? 4 : 7 }
-    var daySpacing: CGFloat { width < 360 ? 10 : 12 }
-    var labelFontSize: CGFloat { width < 360 ? 16 : 18 }
-    var trackHeight: CGFloat { min(178, max(146, width * 0.44)) }
-
-    var dayColumnWidth: CGFloat {
-        let gaps = columnSpacing * CGFloat(AvailableWeekday.allCases.count - 1)
-        let availableWidth = width - gaps
-        return max(28, floor(availableWidth / CGFloat(AvailableWeekday.allCases.count)))
-    }
-
-    var sliderWidth: CGFloat {
-        min(42, max(28, dayColumnWidth - 4))
-    }
-}
-
-private struct AvailableHoursSlider: View {
-    let value: Int
-    let isEditing: Bool
-    let trackHeight: CGFloat
-    let fillWidth: CGFloat
-    let onValueChange: (Int) -> Void
-
-    var body: some View {
-        VStack(spacing: 8) {
-            ZStack(alignment: .bottom) {
-                Rectangle()
-                    .fill(Color.black.opacity(0.88))
-                    .frame(width: 1.4, height: trackHeight)
-                    .padding(.bottom, 10)
-
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(AppTheme.supportGreen.opacity(isEditing ? 0.78 : 0.58))
-                    .frame(width: fillWidth, height: fillHeight)
-                    .overlay(alignment: .center) {
-                        Text("\(value)h")
-                            .font(.title3.weight(.medium))
-                            .foregroundStyle(Color.black)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.72)
-                    }
-                    .padding(.bottom, 0)
-                    .shadow(color: Color.black.opacity(isEditing ? 0.08 : 0), radius: 6, x: 0, y: 3)
-            }
-            .frame(height: trackHeight + 10)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { gesture in
-                        guard isEditing else { return }
-                        updateValue(from: gesture.location.y)
-                    }
-            )
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Horas disponíveis")
-            .accessibilityValue("\(value) horas")
-            .accessibilityAdjustableAction { direction in
-                guard isEditing else { return }
-
-                switch direction {
-                case .increment:
-                    onValueChange(value + 1)
-                case .decrement:
-                    onValueChange(value - 1)
-                @unknown default:
-                    break
-                }
-            }
+    private var weeklyTotalMinutes: Int {
+        AvailableWeekday.allCases.reduce(0) { partialResult, day in
+            partialResult + displayedMinutes(for: day)
         }
-        .opacity(isEditing ? 1 : 0.86)
-        .allowsHitTesting(isEditing)
     }
 
-    private var fillHeight: CGFloat {
-        max(42, CGFloat(value) / 24 * trackHeight)
-    }
-
-    private func updateValue(from locationY: CGFloat) {
-        let adjustedY = min(max(locationY - 10, 0), trackHeight)
-        let progress = 1 - (adjustedY / trackHeight)
-        let newValue = Int((progress * 24).rounded())
-        onValueChange(newValue)
+    private func snappedMinutes(_ value: Int) -> Int {
+        min(max(Int((Double(value) / 15).rounded()) * 15, 0), 480)
     }
 }
 

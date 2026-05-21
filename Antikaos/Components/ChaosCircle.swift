@@ -21,16 +21,13 @@ struct ChaosCircle: View {
 
             VStack(spacing: 6) {
                 Text(AppStrings.scoreValue(value))
-                    .font(.system(size: 38, weight: .semibold, design: .rounded))
+                    .font(AppTheme.schoolbell(40))
                     .foregroundStyle(AppTheme.primaryText)
                     .contentTransition(.numericText(value: Double(value)))
 
                 Text(AppStrings.localized(level.titleKey))
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(level.tint)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(level.tint.opacity(0.14), in: Capsule())
+                    .font(AppTheme.schoolbell(18))
+                    .foregroundStyle(AppTheme.primaryChaos)
             }
         }
         .frame(width: 208, height: 208)

@@ -34,7 +34,7 @@ struct WeeklyIntensityView: View {
                     .animation(.spring(response: 0.45, dampingFraction: 0.84), value: point.hasTasks)
 
                     Text(dayLabel(for: point.date))
-                        .font(.caption2.weight(.medium))
+                        .font(AppTheme.schoolbell(16))
                         .foregroundStyle(AppTheme.secondaryText)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)

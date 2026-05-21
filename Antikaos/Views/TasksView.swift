@@ -40,8 +40,8 @@ struct TasksView: View {
 
             List {
                 Text(AppStrings.localized("tasks.title"))
-                    .font(.largeTitle.weight(.bold))
-                    .foregroundStyle(Color.black)
+                    .font(AppTheme.schoolbell(34))
+                    .foregroundStyle(AppTheme.primaryText)
                     .padding(.horizontal, 4)
                     .listRowStyle()
 
@@ -56,8 +56,8 @@ struct TasksView: View {
 
                 if !completedTasks.isEmpty {
                     Text(AppStrings.localized("tasks.completed.section"))
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(Color.black)
+                        .font(AppTheme.schoolbell(18))
+                        .foregroundStyle(AppTheme.primaryText)
                         .padding(.horizontal, 4)
                         .padding(.top, 8)
                         .listRowStyle()
@@ -78,12 +78,14 @@ struct TasksView: View {
                     CalendarView()
                 } label: {
                     Image(systemName: "calendar")
+                        .foregroundStyle(AppTheme.primaryChaos)
                 }
 
                 Button {
                     editorRoute = .create
                 } label: {
                     Image(systemName: "plus")
+                        .foregroundStyle(AppTheme.primaryChaos)
                 }
             }
         }
@@ -106,11 +108,11 @@ struct TasksView: View {
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(AppStrings.localized("tasks.empty.title"))
-                .font(.title3.weight(.semibold))
+                .font(AppTheme.schoolbell(24))
                 .foregroundStyle(AppTheme.primaryText)
 
             Text(AppStrings.localized("tasks.empty.body"))
-                .font(.subheadline)
+                .font(AppTheme.schoolbell(16))
                 .foregroundStyle(AppTheme.secondaryText)
         }
         .softCard()
