@@ -2,7 +2,12 @@ import Foundation
 
 enum AppStrings {
     static func localized(_ key: String) -> String {
-        NSLocalizedString(key, comment: "")
+        switch key {
+        case "createTask.title":
+            return "Criar deadline"
+        default:
+            return NSLocalizedString(key, comment: "")
+        }
     }
 
     static func integerValue(_ value: Int) -> String {

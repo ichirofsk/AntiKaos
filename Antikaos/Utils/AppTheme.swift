@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 enum AppTheme {
     static let background = Color(red: 244 / 255, green: 237 / 255, blue: 232 / 255)
@@ -74,5 +75,13 @@ extension View {
 
     func scribbleBackground() -> some View {
         modifier(ScribbleBackgroundModifier())
+    }
+
+    func dismissKeyboardOnTap() -> some View {
+        simultaneousGesture(
+            TapGesture().onEnded {
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            }
+        )
     }
 }

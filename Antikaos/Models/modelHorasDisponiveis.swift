@@ -93,9 +93,9 @@ extension modelHorasDisponiveis {
     }
 
     static func formattedTime(minutes: Int) -> String {
-        let clamped = clampedMinutes(minutes)
-        let hours = clamped / 60
-        let mins = clamped % 60
+        let normalized = max(minutes, 0)
+        let hours = normalized / 60
+        let mins = normalized % 60
 
         if mins == 0 {
             return "\(hours)h"

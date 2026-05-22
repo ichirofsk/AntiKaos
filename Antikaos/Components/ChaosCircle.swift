@@ -20,10 +20,18 @@ struct ChaosCircle: View {
                 .animation(.spring(response: 0.45, dampingFraction: 0.88), value: value)
 
             VStack(spacing: 6) {
-                Text(AppStrings.scoreValue(value))
-                    .font(AppTheme.schoolbell(40))
-                    .foregroundStyle(AppTheme.primaryText)
-                    .contentTransition(.numericText(value: Double(value)))
+                HStack(alignment: .lastTextBaseline, spacing: 2) {
+                    Text("\(value)")
+                        .font(AppTheme.schoolbell(52))
+                        .foregroundStyle(AppTheme.primaryText)
+                        .contentTransition(.numericText(value: Double(value)))
+
+                    Text("/100")
+                        .font(AppTheme.schoolbell(24))
+                        .foregroundStyle(AppTheme.primaryText.opacity(0.82))
+                }
+                .minimumScaleFactor(0.75)
+                .multilineTextAlignment(.center)
 
                 Text(AppStrings.localized(level.titleKey))
                     .font(AppTheme.schoolbell(18))

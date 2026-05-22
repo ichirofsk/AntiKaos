@@ -185,6 +185,7 @@ struct TaskManager {
     private func saveContext() {
         do {
             try modelContext.save()
+            NotificationManager.sync(tasks: fetchTasks(), generatedTasks: fetchGeneratedTasks())
         } catch {
             assertionFailure("Failed to save context: \(error)")
         }
@@ -325,24 +326,31 @@ struct TaskManager {
             day = nextDay
         }
 
-        let sessionCount = min(max(task.totalSessions, 0), days.count)
+        let sessionCount = max(task.totalSessions, 0)
         guard sessionCount > 0 else { return [] }
+        guard !days.isEmpty else { return [] }
 
-        let selectedDays: [Date]
-        if sessionCount == days.count {
-            selectedDays = days
-        } else if sessionCount == 1 {
-            selectedDays = [days[0]]
+        var sessionsPerDay: [Date: Int] = [:]
+        if sessionCount == 1 {
+            sessionsPerDay[days[0], default: 0] += 1
         } else {
-            let lastIndex = days.count - 1
-            selectedDays = (0..<sessionCount).map { index in
-                let rawIndex = Double(index) * Double(lastIndex) / Double(sessionCount - 1)
-                return days[Int(rawIndex.rounded())]
+            for index in 0..<sessionCount {
+                let rawIndex = Double(index) * Double(days.count - 1) / Double(max(sessionCount - 1, 1))
+                let day = days[Int(rawIndex.rounded())]
+                sessionsPerDay[day, default: 0] += 1
             }
         }
 
-        return selectedDays.compactMap { day in
-            scheduledDate(on: day, matchingTimeOf: task.deadlineDate, calendar: calendar)
+        return days.flatMap { day in
+            let count = sessionsPerDay[day, default: 0]
+            guard count > 0 else { return [Date]() }
+
+            return scheduledDates(
+                on: day,
+                count: count,
+                matchingTimeOf: task.deadlineDate,
+                calendar: calendar
+            )
         }
     }
 
@@ -357,6 +365,27 @@ struct TaskManager {
         components.minute = timeComponents.minute
         components.second = timeComponents.second
         return calendar.date(from: components)
+    }
+
+    private func scheduledDates(
+        on day: Date,
+        count: Int,
+        matchingTimeOf referenceDate: Date,
+        calendar: Calendar
+    ) -> [Date] {
+        guard count > 0 else { return [] }
+
+        let referenceHour = calendar.component(.hour, from: referenceDate)
+        let referenceMinute = calendar.component(.minute, from: referenceDate)
+        let firstHour = max(min(referenceHour - max(count - 1, 0), 20), 7)
+
+        return (0..<count).compactMap { index in
+            var components = calendar.dateComponents([.year, .month, .day], from: day)
+            components.hour = min(firstHour + index, 22)
+            components.minute = referenceMinute
+            components.second = 0
+            return calendar.date(from: components)
+        }
     }
 
     private func fetchTasks() -> [TaskItem] {
@@ -581,6 +610,37 @@ struct TaskManager {
                 notes: ""
             )
         )
+    }
+
+    static func removeLegacySampleDataIfNeeded(in modelContext: ModelContext) {
+        let descriptor = FetchDescriptor<TaskItem>()
+        guard let tasks = try? modelContext.fetch(descriptor), !tasks.isEmpty else { return }
+
+        let sampleTitles: Set<String> = [
+            "Estudar cálculo",
+            "Preparar apresentação",
+            "Responder e-mails"
+        ]
+
+        let taskTitles = Set(tasks.map(\.title))
+        guard taskTitles.isSubset(of: sampleTitles) else { return }
+
+        let generatedTasks = (try? modelContext.fetch(FetchDescriptor<GeneratedTaskItem>())) ?? []
+        let historyEntries = (try? modelContext.fetch(FetchDescriptor<HistoryEntry>())) ?? []
+
+        for task in tasks {
+            modelContext.delete(task)
+        }
+
+        for generatedTask in generatedTasks {
+            modelContext.delete(generatedTask)
+        }
+
+        for entry in historyEntries {
+            modelContext.delete(entry)
+        }
+
+        try? modelContext.save()
     }
 
     static var previewContainer: ModelContainer {

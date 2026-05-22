@@ -15,7 +15,7 @@ struct WeeklyIntensityView: View {
             ForEach(points) { point in
                 VStack(spacing: 8) {
                     Group {
-                        if point.hasTasks {
+                        if point.stars > 0 {
                             VStack(spacing: 3) {
                                 ForEach(0..<3, id: \.self) { index in
                                     Image(systemName: index < point.stars ? "star.fill" : "star")

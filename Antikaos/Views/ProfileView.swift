@@ -9,6 +9,7 @@ struct ProfileView: View {
     @Query(sort: \modelHorasDisponiveis.updatedAt, order: .reverse) private var availableHoursModels: [modelHorasDisponiveis]
     @State private var isEditingAvailableHours = false
     @State private var isEditingUserName = false
+    @State private var isHistoryExpanded = false
     @State private var draftUserName = ""
 
     private var completedTasksCount: Int {
@@ -58,6 +59,7 @@ struct ProfileView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .dismissKeyboardOnTap()
         .onAppear {
             createAvailableHoursModelIfNeeded()
             resetDraftUserName()
@@ -107,7 +109,7 @@ struct ProfileView: View {
                         .textInputAutocapitalization(.words)
                         .autocorrectionDisabled()
                         .font(AppTheme.schoolbell(18))
-                        .foregroundStyle(Color.black)
+                        .foregroundStyle(AppTheme.primaryText)
                         .padding(.horizontal, 12)
                         .frame(height: 42)
                         .background(Color.white, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -195,15 +197,41 @@ struct ProfileView: View {
 
     private var historySection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(AppStrings.localized("history.title"))
-                .font(AppTheme.schoolbell(24))
-                .foregroundStyle(AppTheme.primaryText)
+            HStack {
+                Text(AppStrings.localized("history.title"))
+                    .font(AppTheme.schoolbell(24))
+                    .foregroundStyle(AppTheme.primaryText)
+
+                Spacer()
+
+                Button {
+                    withAnimation(.snappy(duration: 0.24)) {
+                        isHistoryExpanded.toggle()
+                    }
+                } label: {
+                    Image(systemName: isHistoryExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(AppTheme.primaryChaos)
+                }
+                .buttonStyle(.plain)
+            }
 
             if historyEntries.isEmpty {
                 Text(AppStrings.localized("history.empty"))
                     .font(AppTheme.schoolbell(16))
                     .foregroundStyle(AppTheme.secondaryText)
                     .softCard()
+            } else if !isHistoryExpanded {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(historyEntries.first?.message ?? AppStrings.localized("history.empty"))
+                        .font(AppTheme.schoolbell(18))
+                        .foregroundStyle(AppTheme.primaryText)
+
+                    Text("\(min(historyEntries.count, 8)) registros recentes")
+                        .font(AppTheme.schoolbell(14))
+                        .foregroundStyle(AppTheme.secondaryText)
+                }
+                .softCard()
             } else {
                 ForEach(historyEntries.prefix(8)) { entry in
                     HStack(alignment: .top, spacing: 12) {
@@ -323,7 +351,7 @@ struct AvailableHoursCard: View {
                                     get: { Double(displayedMinutes(for: day)) },
                                     set: { draftMinutes[day] = snappedMinutes(Int($0.rounded())) }
                                 ),
-                                in: 0...480,
+                                in: 0...(24 * 60),
                                 step: 15
                             )
                             .tint(AppTheme.primaryChaos)
@@ -400,11 +428,11 @@ struct AvailableHoursCard: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 10)
 
-                Picker("Horas", selection: Binding(
-                    get: { displayedMinutes(for: day) },
-                    set: { draftMinutes[day] = snappedMinutes($0) }
-                )) {
-                    ForEach(stride(from: 0, through: 480, by: 15).map { $0 }, id: \.self) { minutes in
+                    Picker("Horas", selection: Binding(
+                        get: { displayedMinutes(for: day) },
+                        set: { draftMinutes[day] = snappedMinutes($0) }
+                    )) {
+                    ForEach(stride(from: 0, through: 24 * 60, by: 15).map { $0 }, id: \.self) { minutes in
                         Text(modelHorasDisponiveis.formattedTime(minutes: minutes))
                             .tag(minutes)
                     }
@@ -517,7 +545,7 @@ struct AvailableHoursCard: View {
     }
 
     private func snappedMinutes(_ value: Int) -> Int {
-        min(max(Int((Double(value) / 15).rounded()) * 15, 0), 480)
+        min(max(Int((Double(value) / 15).rounded()) * 15, 0), 24 * 60)
     }
 }
 

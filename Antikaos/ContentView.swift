@@ -84,9 +84,11 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.24), value: isShowingLaunchScreen)
         .animation(.easeInOut(duration: 0.24), value: needsNameOnboarding)
         .animation(.easeInOut(duration: 0.24), value: needsAvailableHoursOnboarding)
+        .dismissKeyboardOnTap()
         .onAppear {
             onboardingName = userName
             createAvailableHoursModelIfNeeded()
+            NotificationManager.requestAuthorizationIfNeeded()
         }
     }
 
@@ -287,7 +289,7 @@ struct ContentView: View {
         } label: {
             HStack(spacing: 12) {
                 Text(day.shortTitle.capitalized)
-                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .font(.custom("Schoolbell", size: 20))
                     .foregroundStyle(Color.black.opacity(0.82))
                     .frame(width: 42, alignment: .leading)
 
@@ -296,7 +298,7 @@ struct ContentView: View {
                         get: { Double(minutes) },
                         set: { onboardingDraftMinutes[day] = snappedMinutes(Int($0.rounded())) }
                     ),
-                    in: 0...480,
+                    in: 0...(24 * 60),
                     step: 15
                 )
                 .tint(onboardingAccent)
@@ -324,7 +326,7 @@ struct ContentView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("Total semanal")
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .font(.custom("Schoolbell", size: 18))
                     .foregroundStyle(Color.black.opacity(0.58))
 
                 Text(modelHorasDisponiveis.formattedTime(minutes: onboardingWeeklyTotalMinutes))
@@ -378,7 +380,7 @@ struct ContentView: View {
                     Spacer()
 
                     Text(day.shortTitle.capitalized)
-                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                        .font(.custom("Schoolbell", size: 22))
 
                 Spacer()
 
@@ -392,8 +394,9 @@ struct ContentView: View {
             .padding(.top, 10)
 
             Picker("Horas", selection: binding) {
-                ForEach(stride(from: 0, through: 480, by: 15).map { $0 }, id: \.self) { minutes in
+                ForEach(stride(from: 0, through: 24 * 60, by: 15).map { $0 }, id: \.self) { minutes in
                     Text(modelHorasDisponiveis.formattedTime(minutes: minutes))
+                        .font(.custom("Schoolbell", size: 22))
                         .tag(minutes)
                 }
             }
@@ -424,26 +427,40 @@ struct ContentView: View {
     }
 
     private func snappedMinutes(_ value: Int) -> Int {
-        min(max(Int((Double(value) / 15).rounded()) * 15, 0), 480)
+        min(max(Int((Double(value) / 15).rounded()) * 15, 0), 24 * 60)
     }
 
     private var launchScreen: some View {
         ZStack {
-            Color(red: 0.08, green: 0.09, blue: 0.12)
+            onboardingBackground
                 .ignoresSafeArea()
+
+            ZStack {
+                Circle()
+                    .fill(Color.white.opacity(0.55))
+                    .frame(width: 280, height: 280)
+                    .blur(radius: 44)
+                    .offset(x: 120, y: -220)
+
+                Circle()
+                    .fill(onboardingAccent.opacity(0.12))
+                    .frame(width: 240, height: 240)
+                    .blur(radius: 48)
+                    .offset(x: -120, y: 220)
+            }
+            .ignoresSafeArea()
 
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 VStack(spacing: 18) {
                     ChaosCircle(value: overallChaos)
-                        .environment(\.colorScheme, .dark)
 
                     Text(AppStrings.localized(ChaosLevel(value: overallChaos).titleKey))
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(Color.white.opacity(0.92))
+                        .font(.custom("Schoolbell", size: 24))
+                        .foregroundStyle(Color.black.opacity(0.82))
 
                     Text(focusClockString(for: context.date))
                         .font(.system(size: 22, weight: .medium, design: .monospaced))
-                        .foregroundStyle(Color.white.opacity(0.82))
+                        .foregroundStyle(Color.black.opacity(0.7))
 
                     BlinkingFocusHint()
                 }
@@ -468,8 +485,8 @@ private struct BlinkingFocusHint: View {
 
     var body: some View {
         Text(AppStrings.localized("focus.tapToReturn"))
-            .font(.footnote.weight(.medium))
-            .foregroundStyle(Color.white.opacity(isVisible ? 0.76 : 0.18))
+            .font(.custom("Schoolbell", size: 18))
+            .foregroundStyle(Color.black.opacity(isVisible ? 0.62 : 0.18))
             .multilineTextAlignment(.center)
             .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: isVisible)
             .onAppear {

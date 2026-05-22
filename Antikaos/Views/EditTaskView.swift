@@ -19,6 +19,7 @@ struct EditTaskView: View {
     @State private var notes: String
     @State private var draftNotes: String
     @State private var isEditingNotes = false
+    @FocusState private var focusedNumericField: NumericField?
 
     init(task: TaskItem? = nil, onSave: @escaping (TaskFormData) -> Void) {
         self.task = task
@@ -58,7 +59,7 @@ struct EditTaskView: View {
         let startOfToday = calendar.startOfDay(for: .now)
         let deadlineDay = calendar.startOfDay(for: deadlineDate)
         let daysBeforeDeadline = calendar.dateComponents([.day], from: startOfToday, to: deadlineDay).day ?? 0
-        return max(daysBeforeDeadline, 1)
+        return max(daysBeforeDeadline * 8, 24)
     }
 
     var body: some View {
@@ -136,7 +137,8 @@ struct EditTaskView: View {
                                     stepperRow(
                                         title: AppStrings.localized("task.field.totalSessions"),
                                         value: $totalSessions,
-                                        range: 1...maxPunctualSessions
+                                        range: 1...maxPunctualSessions,
+                                        field: .totalSessions
                                     )
 
                                     Divider()
@@ -144,7 +146,8 @@ struct EditTaskView: View {
                                     stepperRow(
                                         title: AppStrings.localized("task.field.completedSessions"),
                                         value: $completedSessions,
-                                        range: 0...max(totalSessions, 1)
+                                        range: 0...max(totalSessions, 1),
+                                        field: .completedSessions
                                     )
 
                                     Divider()
@@ -152,7 +155,8 @@ struct EditTaskView: View {
                                     stepperRow(
                                         title: AppStrings.localized("task.field.dedicationMinutes"),
                                         value: $dedicationMinutes,
-                                        range: 0...600
+                                        range: 0...600,
+                                        field: .dedicationMinutes
                                     )
                                 }
                             }
@@ -194,6 +198,7 @@ struct EditTaskView: View {
                     .disabled(!canSave)
                 }
             }
+            .dismissKeyboardOnTap()
         }
     }
 
@@ -202,7 +207,7 @@ struct EditTaskView: View {
             .softCard()
     }
 
-    private func stepperRow(title: String, value: Binding<Int>, range: ClosedRange<Int>) -> some View {
+    private func stepperRow(title: String, value: Binding<Int>, range: ClosedRange<Int>, field: NumericField) -> some View {
         HStack {
             Text(title)
                 .font(AppTheme.schoolbell(16))
@@ -222,10 +227,24 @@ struct EditTaskView: View {
                 .disabled(value.wrappedValue <= range.lowerBound)
                 .opacity(value.wrappedValue <= range.lowerBound ? 0.35 : 1)
 
-                Text(AppStrings.integerValue(value.wrappedValue))
-                    .font(AppTheme.schoolbell(18))
-                    .foregroundStyle(AppTheme.primaryText)
-                    .frame(minWidth: 28, alignment: .trailing)
+                TextField(
+                    "",
+                    value: value,
+                    format: .number
+                )
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.center)
+                .font(AppTheme.schoolbell(18))
+                .foregroundStyle(AppTheme.primaryText)
+                .frame(width: 58, height: 34)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.white.opacity(0.72))
+                )
+                .focused($focusedNumericField, equals: field)
+                .onChange(of: value.wrappedValue) { _, newValue in
+                    value.wrappedValue = min(max(newValue, range.lowerBound), range.upperBound)
+                }
 
                 Button {
                     value.wrappedValue = min(value.wrappedValue + 1, range.upperBound)
@@ -243,6 +262,7 @@ struct EditTaskView: View {
             completedSessions = min(completedSessions, newValue)
         }
     }
+
 
     private var deadlineDateSection: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -265,7 +285,7 @@ struct EditTaskView: View {
                         displayedComponents: [.date]
                     )
                     .datePickerStyle(.graphical)
-                    .foregroundStyle(Color.black)
+                    .foregroundStyle(AppTheme.primaryText)
                     .environment(\.colorScheme, .light)
 
                     Divider()
@@ -276,7 +296,7 @@ struct EditTaskView: View {
                         displayedComponents: [.hourAndMinute]
                     )
                     .datePickerStyle(.compact)
-                    .foregroundStyle(Color.black)
+                    .foregroundStyle(AppTheme.primaryText)
                     .environment(\.colorScheme, .light)
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -285,7 +305,7 @@ struct EditTaskView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(deadlineDateDisplay)
                             .font(AppTheme.schoolbell(20))
-                            .foregroundStyle(Color.black)
+                            .foregroundStyle(AppTheme.primaryText)
 
                         Text(deadlineTimeDisplay)
                             .font(AppTheme.schoolbell(18))
@@ -298,7 +318,7 @@ struct EditTaskView: View {
             }
         }
         .tint(AppTheme.primaryChaos)
-        .foregroundStyle(Color.black)
+        .foregroundStyle(AppTheme.primaryText)
     }
 
     private var deadlineDateSaveButton: some View {
@@ -557,6 +577,12 @@ struct EditTaskView: View {
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedNotes.isEmpty ? AppStrings.localized("task.field.notes.empty") : notes
     }
+}
+
+private enum NumericField: Hashable {
+    case totalSessions
+    case completedSessions
+    case dedicationMinutes
 }
 
 #Preview {

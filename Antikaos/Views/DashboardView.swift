@@ -134,15 +134,19 @@ struct DashboardView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 28)
             }
+
+            if isShowingChaosInfo {
+                chaosInfoOverlay
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                    .zIndex(2)
+            }
         }
         .scribbleBackground()
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(isPresented: $isShowingTodayTodo) {
             TodayTodoView()
         }
-        .alert("O caos combina dificuldade, tempo restante e progresso para mostrar como sua rotina está agora.", isPresented: $isShowingChaosInfo) {
-            Button("OK", role: .cancel) {}
-        }
+        .animation(.easeInOut(duration: 0.22), value: isShowingChaosInfo)
         .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { date in
             currentDate = date
         }
@@ -186,6 +190,77 @@ struct DashboardView: View {
             }
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var chaosInfoOverlay: some View {
+        ZStack {
+            AppTheme.background.opacity(0.92)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    isShowingChaosInfo = false
+                }
+
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Text("O que é o caos?")
+                        .font(AppTheme.schoolbell(24))
+                        .foregroundStyle(AppTheme.primaryText)
+
+                    Spacer()
+
+                    Button {
+                        isShowingChaosInfo = false
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(AppTheme.primaryChaos)
+                            .frame(width: 30, height: 30)
+                            .background(
+                                Circle()
+                                    .fill(Color.white.opacity(0.72))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Text("O caos junta dificuldade, tempo restante e progresso das suas sessões para mostrar como sua rotina está agora.")
+                    .font(AppTheme.schoolbell(18))
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("Quanto maior o valor, mais apertada está a organização da tarefa.")
+                    .font(AppTheme.schoolbell(16))
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button {
+                    isShowingChaosInfo = false
+                } label: {
+                    Text("Entendi")
+                        .font(AppTheme.schoolbell(20))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(AppTheme.primaryChaos)
+                        )
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 4)
+            }
+            .padding(22)
+            .frame(maxWidth: 320)
+            .background(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(AppTheme.paper.opacity(0.98))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .stroke(AppTheme.primaryChaos.opacity(0.9), lineWidth: 1)
+                    )
+            )
+            .padding(.horizontal, 28)
+        }
     }
 
     private var todoCard: some View {
@@ -244,6 +319,10 @@ struct DashboardView: View {
             }
         }
         .softCard()
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isShowingTodayTodo = true
+        }
     }
 
     private func starCount(completedTasks: Int, totalTasks: Int) -> Int {
