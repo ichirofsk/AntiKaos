@@ -10,7 +10,6 @@ struct ProfileView: View {
     @State private var isEditingAvailableHours = false
     @State private var isEditingUserName = false
     @State private var isHistoryExpanded = false
-    @State private var isShowingRecentActivity = false
     @State private var draftUserName = ""
     @State private var isShowingChaosInfo = false
 
@@ -62,10 +61,6 @@ struct ProfileView: View {
         return modelHorasDisponiveis.formattedTime(minutes: minutes)
     }
 
-    private var recentActivityEntries: [HistoryEntry] {
-        Array(historyEntries.prefix(3))
-    }
-
     private var chaosDisplayName: String {
         let label = AppStrings.localized(todayChaosLevel.titleKey)
         return label.replacingOccurrences(of: "Caos ", with: "")
@@ -85,7 +80,6 @@ struct ProfileView: View {
                     headerSection
                     overviewSection
                     availableHoursSection
-                    recentActivitySection
                     historySection
                 }
                 .padding(.horizontal, 20)
@@ -97,13 +91,6 @@ struct ProfileView: View {
         .onAppear {
             createAvailableHoursModelIfNeeded()
             resetDraftUserName()
-        }
-        .navigationDestination(isPresented: $isShowingRecentActivity) {
-            RecentActivityListView(
-                entries: historyEntries,
-                colorForType: color(for:),
-                title: "Atividade recente"
-            )
         }
     }
 
@@ -188,7 +175,7 @@ struct ProfileView: View {
                         .foregroundStyle(AppTheme.primaryChaos)
 
                     HStack(spacing: 8) {
-                        Text("Caos da semana")
+                        Text("Caos médio da semana")
                             .font(AppTheme.schoolbell(18))
                             .foregroundStyle(AppTheme.primaryText)
                             .lineLimit(1)
@@ -224,10 +211,6 @@ struct ProfileView: View {
                                 }
                         )
                 }
-
-                Spacer(minLength: 10)
-
-                ChaosCircle(value: averageWeeklyChaos, size: 124)
             }
 
             Divider()
@@ -325,58 +308,6 @@ struct ProfileView: View {
                 onChange: saveAvailableHours
             )
         }
-    }
-
-    private var recentActivitySection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("Atividade recente")
-                    .font(AppTheme.schoolbell(24))
-                    .foregroundStyle(AppTheme.primaryText)
-
-                Spacer()
-
-                Button {
-                    isShowingRecentActivity = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Text("Ver tudo")
-                            .font(AppTheme.schoolbell(18))
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 15, weight: .semibold))
-                    }
-                    .foregroundStyle(AppTheme.primaryChaos)
-                }
-                .buttonStyle(.plain)
-            }
-
-            VStack(spacing: 0) {
-                ForEach(Array(recentActivityEntries.enumerated()), id: \.element.id) { index, entry in
-                    HStack(alignment: .center, spacing: 12) {
-                        Circle()
-                            .fill(color(for: entry.type).opacity(0.85))
-                            .frame(width: 14, height: 14)
-
-                        Text(entry.message)
-                            .font(AppTheme.schoolbell(17))
-                            .foregroundStyle(AppTheme.primaryText)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                        Text(AppStrings.historyDate(entry.date))
-                            .font(AppTheme.schoolbell(15))
-                            .foregroundStyle(AppTheme.secondaryText)
-                            .multilineTextAlignment(.trailing)
-                    }
-                    .padding(.vertical, 14)
-
-                    if index < recentActivityEntries.count - 1 {
-                        Divider()
-                            .overlay(AppTheme.primaryText.opacity(0.08))
-                    }
-                }
-            }
-        }
-        .softCard()
     }
 
     private var historySection: some View {
