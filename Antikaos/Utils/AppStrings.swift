@@ -5,6 +5,8 @@ enum AppStrings {
         switch key {
         case "createTask.title":
             return "Criar deadline"
+        case "dashboard.todo":
+            return "To-do"
         default:
             return NSLocalizedString(key, comment: "")
         }
