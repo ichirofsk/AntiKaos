@@ -319,35 +319,33 @@ struct ProfileView: View {
 
                 Spacer()
 
-                Button {
-                    withAnimation(.snappy(duration: 0.24)) {
-                        isHistoryExpanded.toggle()
-                    }
-                } label: {
-                    Image(systemName: isHistoryExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 16, weight: .semibold))
+                if historyEntries.count > 3 {
+                    Button {
+                        withAnimation(.snappy(duration: 0.24)) {
+                            isHistoryExpanded.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text(isHistoryExpanded ? "Ver menos" : "Ver mais")
+                                .font(AppTheme.schoolbell(18))
+                            Image(systemName: isHistoryExpanded ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
                         .foregroundStyle(AppTheme.primaryChaos)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
 
             if historyEntries.isEmpty {
                 Text(AppStrings.localized("history.empty"))
                     .font(AppTheme.schoolbell(16))
                     .foregroundStyle(AppTheme.secondaryText)
-            } else if !isHistoryExpanded {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(historyEntries.first?.message ?? AppStrings.localized("history.empty"))
-                        .font(AppTheme.schoolbell(18))
-                        .foregroundStyle(AppTheme.primaryText)
-
-                    Text("\(min(historyEntries.count, 8)) registros recentes")
-                        .font(AppTheme.schoolbell(14))
-                        .foregroundStyle(AppTheme.secondaryText)
-                }
             } else {
                 VStack(spacing: 0) {
-                    ForEach(Array(historyEntries.prefix(8).enumerated()), id: \.element.id) { index, entry in
+                    let visibleEntries = isHistoryExpanded ? historyEntries : Array(historyEntries.prefix(3))
+
+                    ForEach(Array(visibleEntries.enumerated()), id: \.element.id) { index, entry in
                         HStack(alignment: .top, spacing: 12) {
                             Image(systemName: iconName(for: entry.type))
                                 .foregroundStyle(color(for: entry.type))
@@ -366,12 +364,12 @@ struct ProfileView: View {
                             Spacer()
 
                             Text(AppStrings.scoreCompact(entry.chaosValue))
-                                .font(.caption.weight(.medium))
+                                .font(AppTheme.schoolbell(14))
                                 .foregroundStyle(ChaosLevel(value: entry.chaosValue).tint)
                         }
                         .padding(.vertical, 12)
 
-                        if index < min(historyEntries.count, 8) - 1 {
+                        if index < visibleEntries.count - 1 {
                             Divider()
                                 .overlay(AppTheme.primaryText.opacity(0.08))
                         }
