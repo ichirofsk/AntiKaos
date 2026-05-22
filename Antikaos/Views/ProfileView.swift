@@ -10,7 +10,9 @@ struct ProfileView: View {
     @State private var isEditingAvailableHours = false
     @State private var isEditingUserName = false
     @State private var isHistoryExpanded = false
+    @State private var isShowingRecentActivity = false
     @State private var draftUserName = ""
+    @State private var isShowingChaosInfo = false
 
     private var completedTasksCount: Int {
         historyEntries.filter { $0.type == .taskCompleted }.count
@@ -38,20 +40,52 @@ struct ProfileView: View {
         return trimmedName.isEmpty ? AppStrings.localized("profile.title") : trimmedName
     }
 
+    private var greetingText: String {
+        let hour = Calendar.current.component(.hour, from: .now)
+        switch hour {
+        case 5..<12:
+            return "Bom dia,"
+        case 12..<18:
+            return "Boa tarde,"
+        default:
+            return "Boa noite,"
+        }
+    }
+
+    private var todayChaosLevel: ChaosLevel {
+        ChaosLevel(value: ChaosCalculator.overallChaos(for: tasks))
+    }
+
+    private var weeklyAvailableHoursText: String {
+        guard let availableHours = availableHoursModels.first else { return "0h" }
+        let minutes = AvailableWeekday.allCases.reduce(0) { $0 + availableHours.minutes(for: $1) }
+        return modelHorasDisponiveis.formattedTime(minutes: minutes)
+    }
+
+    private var recentActivityEntries: [HistoryEntry] {
+        Array(historyEntries.prefix(3))
+    }
+
+    private var chaosDisplayName: String {
+        let label = AppStrings.localized(todayChaosLevel.titleKey)
+        return label.replacingOccurrences(of: "Caos ", with: "")
+    }
+
+    private var weeklyChaosDisplayName: String {
+        let label = AppStrings.localized(ChaosLevel(value: averageWeeklyChaos).titleKey)
+        return label.replacingOccurrences(of: "Caos ", with: "")
+    }
+
     var body: some View {
         ZStack {
             AppTheme.background.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
-                    Text(profileHeaderTitle)
-                        .font(AppTheme.schoolbell(34))
-                        .foregroundStyle(AppTheme.primaryText)
-                        .padding(.horizontal, 4)
-
-                    statsSection
-                    userNameSection
+                    headerSection
+                    overviewSection
                     availableHoursSection
+                    recentActivitySection
                     historySection
                 }
                 .padding(.horizontal, 20)
@@ -64,124 +98,222 @@ struct ProfileView: View {
             createAvailableHoursModelIfNeeded()
             resetDraftUserName()
         }
+        .navigationDestination(isPresented: $isShowingRecentActivity) {
+            RecentActivityListView(
+                entries: historyEntries,
+                colorForType: color(for:),
+                title: "Atividade recente"
+            )
+        }
     }
 
-    private var userNameSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center) {
-                Text("Nome")
-                    .font(AppTheme.schoolbell(24))
+    private var headerSection: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(greetingText)
+                    .font(AppTheme.schoolbell(22))
                     .foregroundStyle(AppTheme.primaryText)
 
-                Spacer()
+                if isEditingUserName {
+                    HStack(spacing: 10) {
+                        TextField("Nome", text: $draftUserName)
+                            .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled()
+                            .font(AppTheme.schoolbell(24))
+                            .foregroundStyle(AppTheme.primaryText)
+                            .padding(.horizontal, 12)
+                            .frame(height: 46)
+                            .background(Color.white.opacity(0.82), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-                Button {
-                    withAnimation(.snappy(duration: 0.22)) {
-                        if isEditingUserName {
-                            resetDraftUserName()
-                            isEditingUserName = false
-                        } else {
-                            resetDraftUserName()
-                            isEditingUserName = true
+                        Button("Salvar") {
+                            saveDraftUserName()
                         }
-                    }
-                } label: {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(isEditingUserName ? Color.white : AppTheme.primaryChaos)
-                        .frame(width: 36, height: 36)
+                        .font(AppTheme.schoolbell(18))
+                        .foregroundStyle(Color.white)
+                        .frame(height: 46)
+                        .padding(.horizontal, 14)
                         .background(
-                            Circle()
-                                .fill(isEditingUserName ? AppTheme.primaryChaos : Color.white.opacity(0.72))
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(trimmedDraftUserName.isEmpty ? AppTheme.secondaryText.opacity(0.35) : AppTheme.primaryChaos)
+                        )
+                        .disabled(trimmedDraftUserName.isEmpty)
+                    }
+                } else {
+                    Text(profileHeaderTitle)
+                        .font(AppTheme.schoolbell(44))
+                        .foregroundStyle(AppTheme.primaryText)
+                }
+
+                Text("Seu caos está \(chaosDisplayName.lowercased()) hoje.")
+                    .font(AppTheme.schoolbell(20))
+                    .foregroundStyle(AppTheme.secondaryText)
+            }
+
+            Spacer(minLength: 10)
+
+            Button {
+                withAnimation(.snappy(duration: 0.22)) {
+                    if isEditingUserName {
+                        resetDraftUserName()
+                        isEditingUserName = false
+                    } else {
+                        resetDraftUserName()
+                        isEditingUserName = true
+                    }
+                }
+            } label: {
+                Image(systemName: "pencil")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(AppTheme.primaryChaos)
+                    .frame(width: 42, height: 42)
+                    .background(
+                        Circle()
+                            .fill(Color.white.opacity(0.72))
+                            .overlay {
+                                Circle()
+                                    .stroke(AppTheme.primaryText.opacity(0.12), lineWidth: 1)
+                            }
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var overviewSection: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Visão geral")
+                        .font(AppTheme.schoolbell(24))
+                        .foregroundStyle(AppTheme.primaryChaos)
+
+                    HStack(spacing: 8) {
+                        Text("Caos da semana")
+                            .font(AppTheme.schoolbell(18))
+                            .foregroundStyle(AppTheme.primaryText)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+
+                        Button {
+                            withAnimation(.snappy(duration: 0.22)) {
+                                isShowingChaosInfo.toggle()
+                            }
+                        } label: {
+                            Image(systemName: "info.circle")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundStyle(AppTheme.secondaryText)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    Text("\(averageWeeklyChaos)/100")
+                        .font(AppTheme.schoolbell(28))
+                        .foregroundStyle(ChaosLevel(value: averageWeeklyChaos).tint)
+
+                    Text(weeklyChaosDisplayName)
+                        .font(AppTheme.schoolbell(18))
+                        .foregroundStyle(ChaosLevel(value: averageWeeklyChaos).tint)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(ChaosLevel(value: averageWeeklyChaos).tint.opacity(0.14))
                                 .overlay {
-                                    Circle()
-                                        .stroke(AppTheme.primaryText.opacity(0.12), lineWidth: 1)
+                                    Capsule()
+                                        .stroke(ChaosLevel(value: averageWeeklyChaos).tint.opacity(0.18), lineWidth: 1)
                                 }
                         )
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(isEditingUserName ? "Cancelar edição do nome" : "Editar nome")
+
+                Spacer(minLength: 10)
+
+                ChaosCircle(value: averageWeeklyChaos, size: 124)
             }
 
-            if isEditingUserName {
-                HStack(spacing: 10) {
-                    TextField("Nome", text: $draftUserName)
-                        .textInputAutocapitalization(.words)
-                        .autocorrectionDisabled()
-                        .font(AppTheme.schoolbell(18))
-                        .foregroundStyle(AppTheme.primaryText)
-                        .padding(.horizontal, 12)
-                        .frame(height: 42)
-                        .background(Color.white, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            Divider()
+                .overlay(AppTheme.primaryText.opacity(0.08))
 
-                    Button("Salvar") {
-                        saveDraftUserName()
-                    }
-                    .font(AppTheme.schoolbell(18))
-                    .foregroundStyle(Color.white)
-                    .frame(height: 42)
-                    .padding(.horizontal, 14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(trimmedDraftUserName.isEmpty ? AppTheme.secondaryText.opacity(0.35) : AppTheme.primaryChaos)
-                    )
-                    .disabled(trimmedDraftUserName.isEmpty)
-                }
-            } else {
-                Text(userName.trimmingCharacters(in: .whitespacesAndNewlines))
-                    .font(AppTheme.schoolbell(20))
-                    .foregroundStyle(AppTheme.primaryText)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 0) {
+                overviewMetric(
+                    value: AppStrings.integerValue(completedTasksCount),
+                    title: "Tarefas\nconcluídas",
+                    tint: AppTheme.supportGreen
+                )
+
+                overviewDivider
+
+                overviewMetric(
+                    value: AppStrings.integerValue(completedSessionsCount),
+                    title: "Sessões\nrealizadas",
+                    tint: AppTheme.primaryChaos
+                )
+
+                overviewDivider
+
+                overviewMetric(
+                    value: weeklyAvailableHoursText,
+                    title: "Tempo disponível\nesta semana",
+                    tint: AppTheme.supportGreen
+                )
             }
         }
         .softCard()
-    }
-
-    private var statsSection: some View {
-        VStack(spacing: 14) {
-            statCard(
-                title: AppStrings.localized("profile.stats.completedTasks"),
-                value: AppStrings.integerValue(completedTasksCount),
-                tint: AppTheme.supportGreen
-            )
-
-            statCard(
-                title: AppStrings.localized("profile.stats.averageChaos"),
-                value: AppStrings.scoreCompact(averageWeeklyChaos),
-                tint: ChaosLevel(value: averageWeeklyChaos).tint
-            )
-
-            statCard(
-                title: AppStrings.localized("profile.stats.sessionsDone"),
-                value: AppStrings.integerValue(completedSessionsCount),
-                tint: AppTheme.primaryChaos
-            )
-        }
-    }
-
-    private func statCard(title: String, value: String, tint: Color) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title)
-                    .font(AppTheme.schoolbell(18))
-                    .foregroundStyle(AppTheme.primaryText)
-
-                Text(value)
-                    .font(AppTheme.schoolbell(28))
-                    .foregroundStyle(AppTheme.primaryText)
+        .overlay(alignment: .topTrailing) {
+            if isShowingChaosInfo {
+                chaosInfoBubble
+                    .offset(x: -16, y: 16)
             }
-
-            Spacer()
-
-            Circle()
-                .fill(tint.opacity(0.16))
-                .frame(width: 44, height: 44)
-                .overlay {
-                    Circle()
-                        .stroke(tint.opacity(0.3), lineWidth: 1)
-                }
         }
-        .softCard()
+    }
+
+    private func overviewMetric(value: String, title: String, tint: Color) -> some View {
+        VStack(spacing: 8) {
+            Text(value)
+                .font(AppTheme.schoolbell(31))
+                .foregroundStyle(tint)
+
+            Text(title)
+                .font(AppTheme.schoolbell(15))
+                .foregroundStyle(AppTheme.primaryText)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+        }
+        .padding(.horizontal, 8)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var overviewDivider: some View {
+        Rectangle()
+            .fill(AppTheme.primaryText.opacity(0.08))
+            .frame(width: 1, height: 116)
+    }
+
+    private var chaosInfoBubble: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("O caos combina dificuldade, prazo e progresso das suas tarefas.")
+                .font(AppTheme.schoolbell(15))
+                .foregroundStyle(AppTheme.primaryText)
+
+            Button("Entendi") {
+                withAnimation(.snappy(duration: 0.22)) {
+                    isShowingChaosInfo = false
+                }
+            }
+            .font(AppTheme.schoolbell(15))
+            .foregroundStyle(AppTheme.primaryChaos)
+        }
+        .padding(14)
+        .frame(maxWidth: 220, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.white.opacity(0.94))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(AppTheme.primaryChaos.opacity(0.18), lineWidth: 1)
+                )
+        )
+        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
     }
 
     @ViewBuilder
@@ -193,6 +325,58 @@ struct ProfileView: View {
                 onChange: saveAvailableHours
             )
         }
+    }
+
+    private var recentActivitySection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Atividade recente")
+                    .font(AppTheme.schoolbell(24))
+                    .foregroundStyle(AppTheme.primaryText)
+
+                Spacer()
+
+                Button {
+                    isShowingRecentActivity = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Text("Ver tudo")
+                            .font(AppTheme.schoolbell(18))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 15, weight: .semibold))
+                    }
+                    .foregroundStyle(AppTheme.primaryChaos)
+                }
+                .buttonStyle(.plain)
+            }
+
+            VStack(spacing: 0) {
+                ForEach(Array(recentActivityEntries.enumerated()), id: \.element.id) { index, entry in
+                    HStack(alignment: .center, spacing: 12) {
+                        Circle()
+                            .fill(color(for: entry.type).opacity(0.85))
+                            .frame(width: 14, height: 14)
+
+                        Text(entry.message)
+                            .font(AppTheme.schoolbell(17))
+                            .foregroundStyle(AppTheme.primaryText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Text(AppStrings.historyDate(entry.date))
+                            .font(AppTheme.schoolbell(15))
+                            .foregroundStyle(AppTheme.secondaryText)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    .padding(.vertical, 14)
+
+                    if index < recentActivityEntries.count - 1 {
+                        Divider()
+                            .overlay(AppTheme.primaryText.opacity(0.08))
+                    }
+                }
+            }
+        }
+        .softCard()
     }
 
     private var historySection: some View {
@@ -220,7 +404,6 @@ struct ProfileView: View {
                 Text(AppStrings.localized("history.empty"))
                     .font(AppTheme.schoolbell(16))
                     .foregroundStyle(AppTheme.secondaryText)
-                    .softCard()
             } else if !isHistoryExpanded {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(historyEntries.first?.message ?? AppStrings.localized("history.empty"))
@@ -231,34 +414,41 @@ struct ProfileView: View {
                         .font(AppTheme.schoolbell(14))
                         .foregroundStyle(AppTheme.secondaryText)
                 }
-                .softCard()
             } else {
-                ForEach(historyEntries.prefix(8)) { entry in
-                    HStack(alignment: .top, spacing: 12) {
-                        Image(systemName: iconName(for: entry.type))
-                            .foregroundStyle(color(for: entry.type))
-                            .frame(width: 20)
+                VStack(spacing: 0) {
+                    ForEach(Array(historyEntries.prefix(8).enumerated()), id: \.element.id) { index, entry in
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: iconName(for: entry.type))
+                                .foregroundStyle(color(for: entry.type))
+                                .frame(width: 20)
 
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(entry.message)
-                                .font(AppTheme.schoolbell(18))
-                                .foregroundStyle(AppTheme.primaryText)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(entry.message)
+                                    .font(AppTheme.schoolbell(18))
+                                    .foregroundStyle(AppTheme.primaryText)
 
-                            Text(AppStrings.historyDate(entry.date))
-                                .font(AppTheme.schoolbell(14))
-                                .foregroundStyle(AppTheme.secondaryText)
+                                Text(AppStrings.historyDate(entry.date))
+                                    .font(AppTheme.schoolbell(14))
+                                    .foregroundStyle(AppTheme.secondaryText)
+                            }
+
+                            Spacer()
+
+                            Text(AppStrings.scoreCompact(entry.chaosValue))
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(ChaosLevel(value: entry.chaosValue).tint)
                         }
+                        .padding(.vertical, 12)
 
-                        Spacer()
-
-                        Text(AppStrings.scoreCompact(entry.chaosValue))
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(ChaosLevel(value: entry.chaosValue).tint)
+                        if index < min(historyEntries.count, 8) - 1 {
+                            Divider()
+                                .overlay(AppTheme.primaryText.opacity(0.08))
+                        }
                     }
-                    .softCard()
                 }
             }
         }
+        .softCard()
     }
 
     private func iconName(for type: HistoryEntryType) -> String {
@@ -328,7 +518,7 @@ struct AvailableHoursCard: View {
     @State private var pickerDay: AvailableWeekday?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             if showsHeader {
                 header
             }
@@ -366,34 +556,8 @@ struct AvailableHoursCard: View {
                     .buttonStyle(.plain)
                 }
 
-                HStack(spacing: 14) {
-                    Circle()
-                        .fill(Color.white.opacity(0.6))
-                        .frame(width: 52, height: 52)
-                        .overlay {
-                            Image(systemName: "clock")
-                                .font(.system(size: 22, weight: .regular))
-                                .foregroundStyle(AppTheme.primaryChaos)
-                        }
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Total semanal")
-                            .font(AppTheme.schoolbell(18))
-                            .foregroundStyle(AppTheme.secondaryText)
-
-                        Text(modelHorasDisponiveis.formattedTime(minutes: weeklyTotalMinutes))
-                            .font(AppTheme.schoolbell(24))
-                            .foregroundStyle(AppTheme.primaryChaos)
-                    }
-
-                    Spacer()
-                }
+                totalWeeklyCard
             }
-            .padding(18)
-            .background(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(Color.white.opacity(0.45))
-            )
 
             if !showsHeader {
                 HStack {
@@ -402,6 +566,7 @@ struct AvailableHoursCard: View {
                 }
             }
         }
+        .softCard()
         .onAppear(perform: resetDraftHours)
         .sheet(item: $pickerDay) { day in
             VStack(spacing: 10) {
@@ -445,7 +610,7 @@ struct AvailableHoursCard: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("Meu tempo disponível:")
+            Text("Meu tempo disponível")
                 .font(AppTheme.schoolbell(24))
                 .foregroundStyle(AppTheme.primaryText)
 
@@ -457,6 +622,46 @@ struct AvailableHoursCard: View {
                 editButton
             }
         }
+    }
+
+    private var totalWeeklyCard: some View {
+        HStack(spacing: 14) {
+            Circle()
+                .fill(AppTheme.primaryChaos.opacity(0.14))
+                .frame(width: 52, height: 52)
+                .overlay {
+                    Image(systemName: "clock")
+                        .font(.system(size: 22, weight: .regular))
+                        .foregroundStyle(AppTheme.primaryChaos)
+                }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Total semanal")
+                    .font(AppTheme.schoolbell(17))
+                    .foregroundStyle(AppTheme.secondaryText)
+
+                Text(modelHorasDisponiveis.formattedTime(minutes: weeklyTotalMinutes))
+                    .font(AppTheme.schoolbell(24))
+                    .foregroundStyle(AppTheme.primaryChaos)
+            }
+
+            Spacer()
+
+            Text("70h disponíveis")
+                .font(AppTheme.schoolbell(17))
+                .foregroundStyle(AppTheme.secondaryText)
+                .multilineTextAlignment(.trailing)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.white.opacity(0.72))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(AppTheme.primaryText.opacity(0.08), lineWidth: 1)
+                )
+        )
     }
 
     var saveButton: some View {
@@ -546,6 +751,48 @@ struct AvailableHoursCard: View {
 
     private func snappedMinutes(_ value: Int) -> Int {
         min(max(Int((Double(value) / 15).rounded()) * 15, 0), 24 * 60)
+    }
+}
+
+private struct RecentActivityListView: View {
+    let entries: [HistoryEntry]
+    let colorForType: (HistoryEntryType) -> Color
+    let title: String
+
+    var body: some View {
+        ZStack {
+            AppTheme.background.ignoresSafeArea()
+
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 14) {
+                    ForEach(entries) { entry in
+                        HStack(alignment: .top, spacing: 12) {
+                            Circle()
+                                .fill(colorForType(entry.type).opacity(0.85))
+                                .frame(width: 14, height: 14)
+                                .padding(.top, 6)
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(entry.message)
+                                    .font(AppTheme.schoolbell(18))
+                                    .foregroundStyle(AppTheme.primaryText)
+
+                                Text(AppStrings.historyDate(entry.date))
+                                    .font(AppTheme.schoolbell(15))
+                                    .foregroundStyle(AppTheme.secondaryText)
+                            }
+
+                            Spacer()
+                        }
+                        .softCard()
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 18)
+            }
+        }
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

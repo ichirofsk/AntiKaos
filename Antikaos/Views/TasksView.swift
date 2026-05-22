@@ -334,143 +334,262 @@ struct TasksView: View {
     private func deadlineCard(_ task: TaskItem, isCompact: Bool, isVeryCompact: Bool) -> some View {
         let tone = tone(for: task)
         let progress = min(max(task.progress, 0), 1)
+        let progressPercent = Int((progress * 100).rounded())
+        let progressText = String(progressPercent) + "%"
+        let sessionsText = AppStrings.sessionsValue(
+            completed: task.completedSessions,
+            total: max(task.tasksQuantity, 1)
+        ) + " sessões concluídas"
+        let difficultyValue = "\(task.perceivedDifficulty)"
+        let difficultyText = difficultyLabel(for: task)
+        let dateLabel = deadlineDateLabel(for: task)
+        let relativeDateText = AppStrings.deadlineRelativeString(for: task.deadlineDate)
         let cardHeight = isVeryCompact ? 126.0 : 132.0
-        let dateWidth = isVeryCompact ? 88.0 : 94.0
-        let buttonWidth = isVeryCompact ? 112.0 : 122.0
+        let dateWidth = isVeryCompact ? 84.0 : 90.0
+        let buttonWidth = isVeryCompact ? 132.0 : 140.0
+        let progressLabelWidth = isVeryCompact ? 30.0 : 34.0
 
         return HStack(alignment: .center, spacing: isVeryCompact ? 10 : 14) {
-            VStack(spacing: isVeryCompact ? 8 : 10) {
-                Text(deadlineDateLabel(for: task))
-                    .font(AppTheme.schoolbell(isVeryCompact ? 22 : 26))
-                    .foregroundStyle(tone)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-
-                Text(AppStrings.deadlineRelativeString(for: task.deadlineDate))
-                    .font(AppTheme.schoolbell(isVeryCompact ? 12 : 14))
-                    .foregroundStyle(AppTheme.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
+            deadlineDateColumn(
+                dateLabel: dateLabel,
+                relativeDateText: relativeDateText,
+                tone: tone,
+                isVeryCompact: isVeryCompact
+            )
             .frame(width: dateWidth)
 
-            Rectangle()
-                .fill(Color.black.opacity(0.05))
-                .frame(width: 1, height: cardHeight - 36)
+            Image("DeadlineCardDivider")
+                .resizable()
+                .renderingMode(.template)
+                .foregroundStyle(Color.black.opacity(0.16))
+                .frame(width: 1, height: cardHeight - 26)
 
-            VStack(alignment: .leading, spacing: isVeryCompact ? 5 : 6) {
-                Text(task.title)
-                    .font(AppTheme.schoolbell(isVeryCompact ? 17 : 20))
-                    .foregroundStyle(AppTheme.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-
-                Text(AppStrings.sessionsValue(completed: task.completedSessions, total: max(task.tasksQuantity, 1)) + " sessões concluídas")
-                    .font(AppTheme.schoolbell(isVeryCompact ? 11 : 13))
-                    .foregroundStyle(AppTheme.secondaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-
-                HStack(alignment: .center, spacing: 5) {
-                    Text("Dificuldade")
-                        .font(AppTheme.schoolbell(isVeryCompact ? 13 : 15))
-                        .foregroundStyle(AppTheme.primaryText)
-
-                    Text("\(task.perceivedDifficulty)")
-                        .font(AppTheme.schoolbell(isVeryCompact ? 18 : 22))
-                        .foregroundStyle(tone)
-                }
-                .lineLimit(1)
-
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(tone)
-                        .frame(width: 9, height: 9)
-
-                    Text(difficultyLabel(for: task))
-                        .font(AppTheme.schoolbell(isVeryCompact ? 13 : 15))
-                        .foregroundStyle(AppTheme.primaryText)
-                        .lineLimit(1)
-                }
-
-                HStack(alignment: .center, spacing: 10) {
-                    GeometryReader { progressProxy in
-                        ZStack(alignment: .leading) {
-                            Capsule()
-                                .fill(AppTheme.track.opacity(0.95))
-
-                            Capsule()
-                                .fill(tone.opacity(0.78))
-                                .frame(width: progressProxy.size.width * progress)
-                        }
-                    }
-                    .frame(height: 8)
-
-                    Text("\(Int((progress * 100).rounded()))%")
-                        .font(AppTheme.schoolbell(isVeryCompact ? 13 : 15))
-                        .foregroundStyle(AppTheme.primaryText)
-                        .frame(width: isVeryCompact ? 28 : 32, alignment: .trailing)
-                }
-                .padding(.top, 2)
-                .animation(.snappy, value: task.progress)
-            }
+            deadlineInfoColumn(
+                title: task.title,
+                sessionsText: sessionsText,
+                difficultyValue: difficultyValue,
+                difficultyText: difficultyText,
+                progress: progress,
+                progressText: progressText,
+                progressLabelWidth: progressLabelWidth,
+                tone: tone,
+                isVeryCompact: isVeryCompact
+            )
             .frame(maxWidth: .infinity, alignment: .leading)
             .layoutPriority(1)
 
-            confirmButton(for: task, tone: tone, width: buttonWidth, isVeryCompact: isVeryCompact)
-                .frame(width: buttonWidth)
+            VStack {
+                Spacer(minLength: 0)
+                confirmButton(for: task, tone: tone, width: buttonWidth, isVeryCompact: isVeryCompact)
+                    .frame(width: buttonWidth)
+                Spacer(minLength: 0)
+            }
+            .frame(width: buttonWidth)
+            .frame(maxHeight: .infinity)
         }
-        .padding(.horizontal, isVeryCompact ? 14 : 18)
+        .padding(.horizontal, isVeryCompact ? 14 : 16)
         .frame(maxWidth: .infinity, minHeight: cardHeight, maxHeight: cardHeight)
-        .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .stroke(tone.opacity(0.14), lineWidth: 1)
-                )
-        )
+        .background(deadlineCardBackground(tone: tone))
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .shadow(color: Color.white.opacity(0.4), radius: 12, x: 0, y: 4)
+        .shadow(color: tone.opacity(0.06), radius: 12, x: 0, y: 5)
         .contentShape(Rectangle())
         .onTapGesture {
             editorRoute = .edit(task)
         }
-    }
-
-    @ViewBuilder
-    private func confirmButton(for task: TaskItem, tone: Color, width: CGFloat, isVeryCompact: Bool) -> some View {
-        if canCompleteSession(for: task) {
-            Button {
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
                 withAnimation(.snappy) {
-                    TaskManager(modelContext: modelContext).completeSession(for: task)
+                    TaskManager(modelContext: modelContext).deleteTask(task)
                 }
             } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: isVeryCompact ? 11 : 13, weight: .semibold))
-
-                    Text("Confirmar")
-                        .font(AppTheme.schoolbell(isVeryCompact ? 13 : 15))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                }
-                .foregroundStyle(tone)
-                .padding(.horizontal, isVeryCompact ? 8 : 10)
-                .frame(width: width, height: isVeryCompact ? 36 : 40)
-                .background(
-                    Capsule()
-                        .fill(Color.white.opacity(0.82))
-                )
-                .overlay(
-                    Capsule()
-                        .stroke(tone.opacity(0.8), lineWidth: 1.1)
-                )
+                Label("Apagar", systemImage: "trash")
             }
-            .buttonStyle(.plain)
-        } else {
-            Color.clear
-                .frame(width: width, height: isVeryCompact ? 36 : 40)
+        }
+    }
+
+    private func deadlineDateColumn(
+        dateLabel: String,
+        relativeDateText: String,
+        tone: Color,
+        isVeryCompact: Bool
+    ) -> some View {
+        VStack(spacing: isVeryCompact ? 7 : 8) {
+            Text(verbatim: dateLabel)
+                .font(AppTheme.schoolbell(isVeryCompact ? 20 : 24))
+                .foregroundStyle(tone)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+
+            Text(verbatim: relativeDateText)
+                .font(AppTheme.schoolbell(isVeryCompact ? 11 : 13))
+                .foregroundStyle(AppTheme.primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+    }
+
+    private func deadlineInfoColumn(
+        title: String,
+        sessionsText: String,
+        difficultyValue: String,
+        difficultyText: String,
+        progress: Double,
+        progressText: String,
+        progressLabelWidth: CGFloat,
+        tone: Color,
+        isVeryCompact: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: isVeryCompact ? 5 : 6) {
+            Text(verbatim: title)
+                .font(AppTheme.schoolbell(isVeryCompact ? 13 : 16))
+                .foregroundStyle(AppTheme.primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .padding(.top, isVeryCompact ? 4 : 6)
+
+            Text(verbatim: sessionsText)
+                .font(AppTheme.schoolbell(isVeryCompact ? 8 : 9))
+                .foregroundStyle(AppTheme.secondaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+
+            deadlineDifficultyRow(
+                difficultyValue: difficultyValue,
+                tone: tone,
+                isVeryCompact: isVeryCompact
+            )
+
+            deadlineDifficultyLabelRow(
+                difficultyText: difficultyText,
+                tone: tone,
+                isVeryCompact: isVeryCompact
+            )
+
+            deadlineProgressRow(
+                progress: progress,
+                progressText: progressText,
+                progressLabelWidth: progressLabelWidth,
+                tone: tone,
+                isVeryCompact: isVeryCompact
+            )
+            .padding(.top, 2)
+            .animation(.snappy, value: progress)
+        }
+    }
+
+    private func deadlineDifficultyRow(
+        difficultyValue: String,
+        tone: Color,
+        isVeryCompact: Bool
+    ) -> some View {
+        HStack(alignment: .center, spacing: 5) {
+            Text("Dificuldade")
+                .font(AppTheme.schoolbell(isVeryCompact ? 8 : 10))
+                .foregroundStyle(AppTheme.primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+
+            Text(verbatim: difficultyValue)
+                .font(AppTheme.schoolbell(isVeryCompact ? 13 : 16))
+                .foregroundStyle(tone)
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+        }
+        .lineLimit(1)
+    }
+
+    private func deadlineDifficultyLabelRow(
+        difficultyText: String,
+        tone: Color,
+        isVeryCompact: Bool
+    ) -> some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(tone)
+                .frame(width: 7, height: 7)
+
+            Text(verbatim: difficultyText)
+                .font(AppTheme.schoolbell(isVeryCompact ? 9 : 11))
+                .foregroundStyle(AppTheme.primaryText)
+                .lineLimit(1)
+        }
+    }
+
+    private func confirmButton(for task: TaskItem, tone: Color, width: CGFloat, isVeryCompact: Bool) -> some View {
+        let isEnabled = canCompleteSession(for: task)
+
+        return Button {
+            guard isEnabled else { return }
+            withAnimation(.snappy) {
+                TaskManager(modelContext: modelContext).completeSession(for: task)
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: isVeryCompact ? 11 : 13, weight: .semibold))
+
+                Text("Confirmar")
+                    .font(AppTheme.schoolbell(isVeryCompact ? 10 : 12))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .foregroundStyle(isEnabled ? tone : tone.opacity(0.52))
+            .padding(.horizontal, isVeryCompact ? 8 : 10)
+            .frame(width: width, height: isVeryCompact ? 44 : 48)
+            .background {
+                Image("DeadlineCardButtonBackground")
+                    .resizable()
+                    .scaledToFill()
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+    }
+
+    private func deadlineProgressRow(
+        progress: Double,
+        progressText: String,
+        progressLabelWidth: CGFloat,
+        tone: Color,
+        isVeryCompact: Bool
+    ) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            GeometryReader { progressProxy in
+                let filledWidth = max(progressProxy.size.width * progress, progress > 0 ? 18 : 0)
+
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(AppTheme.track.opacity(0.95))
+
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [tone.opacity(0.82), tone.opacity(0.66)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: filledWidth)
+                }
+            }
+            .frame(height: 7)
+
+            Text(verbatim: progressText)
+                .font(AppTheme.schoolbell(isVeryCompact ? 11 : 13))
+                .foregroundStyle(AppTheme.primaryText)
+                .frame(width: progressLabelWidth, alignment: .trailing)
+        }
+    }
+
+    private func deadlineCardBackground(tone: Color) -> some View {
+        ZStack {
+            Image("DeadlineCardBackground")
+                .resizable()
+                .scaledToFill()
+
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(tone.opacity(0.08))
+                .blendMode(.multiply)
         }
     }
 

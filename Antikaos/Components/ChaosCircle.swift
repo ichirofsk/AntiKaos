@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ChaosCircle: View {
     let value: Int
+    var size: CGFloat = 208
 
     var body: some View {
         let level = ChaosLevel(value: value)
@@ -38,7 +39,7 @@ struct ChaosCircle: View {
                     .foregroundStyle(AppTheme.primaryChaos)
             }
         }
-        .frame(width: 208, height: 208)
+        .frame(width: size, height: size)
         .accessibilityElement(children: .combine)
     }
 }
