@@ -305,9 +305,15 @@ struct DashboardView: View {
                         isTodoExpanded.toggle()
                     }
                 } label: {
-                    Image(systemName: isTodoExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(AppTheme.primaryChaos)
+                    HStack(spacing: 6) {
+                        Text(isTodoExpanded ? "Ver menos" : "Ver mais")
+                            .font(AppTheme.schoolbell(isVeryCompact ? 14 : 16))
+                            .foregroundStyle(AppTheme.primaryChaos)
+
+                        Image(systemName: isTodoExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(AppTheme.primaryChaos)
+                    }
                 }
                 .buttonStyle(.plain)
             }
