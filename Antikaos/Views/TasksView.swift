@@ -29,20 +29,11 @@ struct TasksView: View {
         switch selectedFilter {
         case .all:
             return pendingTasks
-        case .today:
-            return pendingTasks.filter { calendar.isDateInToday($0.deadlineDate) }
         case .thisWeek:
             guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: now) else {
                 return pendingTasks
             }
-            return pendingTasks.filter {
-                weekInterval.contains($0.deadlineDate) && !calendar.isDateInToday($0.deadlineDate)
-            }
-        case .later:
-            guard let weekEnd = calendar.dateInterval(of: .weekOfYear, for: now)?.end else {
-                return []
-            }
-            return pendingTasks.filter { $0.deadlineDate >= weekEnd }
+            return pendingTasks.filter { weekInterval.contains($0.deadlineDate) }
         }
     }
 
@@ -334,25 +325,20 @@ struct TasksView: View {
     private func deadlineCard(_ task: TaskItem, isCompact: Bool, isVeryCompact: Bool) -> some View {
         let tone = tone(for: task)
         let progress = min(max(task.progress, 0), 1)
-        let progressPercent = Int((progress * 100).rounded())
-        let progressText = String(progressPercent) + "%"
-        let sessionsText = AppStrings.sessionsValue(
+        let sessionsProgressText = AppStrings.sessionsValue(
             completed: task.completedSessions,
             total: max(task.tasksQuantity, 1)
-        ) + " sessões concluídas"
+        )
         let difficultyValue = "\(task.perceivedDifficulty)"
         let difficultyText = difficultyLabel(for: task)
         let dateLabel = deadlineDateLabel(for: task)
-        let relativeDateText = AppStrings.deadlineRelativeString(for: task.deadlineDate)
-        let cardHeight = isVeryCompact ? 126.0 : 132.0
-        let dateWidth = isVeryCompact ? 84.0 : 90.0
-        let buttonWidth = isVeryCompact ? 132.0 : 140.0
-        let progressLabelWidth = isVeryCompact ? 30.0 : 34.0
+        let cardHeight = isVeryCompact ? 116.0 : 122.0
+        let dateWidth = isVeryCompact ? 88.0 : 94.0
 
         return HStack(alignment: .center, spacing: isVeryCompact ? 10 : 14) {
             deadlineDateColumn(
                 dateLabel: dateLabel,
-                relativeDateText: relativeDateText,
+                difficultyValue: difficultyValue,
                 tone: tone,
                 isVeryCompact: isVeryCompact
             )
@@ -366,26 +352,14 @@ struct TasksView: View {
 
             deadlineInfoColumn(
                 title: task.title,
-                sessionsText: sessionsText,
-                difficultyValue: difficultyValue,
                 difficultyText: difficultyText,
                 progress: progress,
-                progressText: progressText,
-                progressLabelWidth: progressLabelWidth,
+                sessionsProgressText: sessionsProgressText,
                 tone: tone,
                 isVeryCompact: isVeryCompact
             )
             .frame(maxWidth: .infinity, alignment: .leading)
             .layoutPriority(1)
-
-            VStack {
-                Spacer(minLength: 0)
-                confirmButton(for: task, tone: tone, width: buttonWidth, isVeryCompact: isVeryCompact)
-                    .frame(width: buttonWidth)
-                Spacer(minLength: 0)
-            }
-            .frame(width: buttonWidth)
-            .frame(maxHeight: .infinity)
         }
         .padding(.horizontal, isVeryCompact ? 14 : 16)
         .frame(maxWidth: .infinity, minHeight: cardHeight, maxHeight: cardHeight)
@@ -396,7 +370,7 @@ struct TasksView: View {
         .onTapGesture {
             editorRoute = .edit(task)
         }
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 withAnimation(.snappy) {
                     TaskManager(modelContext: modelContext).deleteTask(task)
@@ -409,7 +383,7 @@ struct TasksView: View {
 
     private func deadlineDateColumn(
         dateLabel: String,
-        relativeDateText: String,
+        difficultyValue: String,
         tone: Color,
         isVeryCompact: Bool
     ) -> some View {
@@ -420,55 +394,43 @@ struct TasksView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
 
-            Text(verbatim: relativeDateText)
-                .font(AppTheme.schoolbell(isVeryCompact ? 11 : 13))
-                .foregroundStyle(AppTheme.primaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+            HStack(spacing: 4) {
+                Text("Dif.")
+                    .font(AppTheme.schoolbell(isVeryCompact ? 10 : 12))
+                    .foregroundStyle(AppTheme.secondaryText)
+
+                Text(verbatim: difficultyValue)
+                    .font(AppTheme.schoolbell(isVeryCompact ? 14 : 16))
+                    .foregroundStyle(tone)
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
         }
     }
 
     private func deadlineInfoColumn(
         title: String,
-        sessionsText: String,
-        difficultyValue: String,
         difficultyText: String,
         progress: Double,
-        progressText: String,
-        progressLabelWidth: CGFloat,
+        sessionsProgressText: String,
         tone: Color,
         isVeryCompact: Bool
     ) -> some View {
-        VStack(alignment: .leading, spacing: isVeryCompact ? 5 : 6) {
+        VStack(alignment: .leading, spacing: isVeryCompact ? 6 : 7) {
             Text(verbatim: title)
-                .font(AppTheme.schoolbell(isVeryCompact ? 13 : 16))
+                .font(AppTheme.schoolbell(isVeryCompact ? 14 : 17))
                 .foregroundStyle(AppTheme.primaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
-                .padding(.top, isVeryCompact ? 4 : 6)
 
-            Text(verbatim: sessionsText)
-                .font(AppTheme.schoolbell(isVeryCompact ? 8 : 9))
-                .foregroundStyle(AppTheme.secondaryText)
+            Text(verbatim: difficultyText)
+                .font(AppTheme.schoolbell(isVeryCompact ? 10 : 12))
+                .foregroundStyle(tone)
                 .lineLimit(1)
-                .minimumScaleFactor(0.72)
-
-            deadlineDifficultyRow(
-                difficultyValue: difficultyValue,
-                tone: tone,
-                isVeryCompact: isVeryCompact
-            )
-
-            deadlineDifficultyLabelRow(
-                difficultyText: difficultyText,
-                tone: tone,
-                isVeryCompact: isVeryCompact
-            )
 
             deadlineProgressRow(
                 progress: progress,
-                progressText: progressText,
-                progressLabelWidth: progressLabelWidth,
+                sessionsProgressText: sessionsProgressText,
                 tone: tone,
                 isVeryCompact: isVeryCompact
             )
@@ -477,79 +439,9 @@ struct TasksView: View {
         }
     }
 
-    private func deadlineDifficultyRow(
-        difficultyValue: String,
-        tone: Color,
-        isVeryCompact: Bool
-    ) -> some View {
-        HStack(alignment: .center, spacing: 5) {
-            Text("Dificuldade")
-                .font(AppTheme.schoolbell(isVeryCompact ? 8 : 10))
-                .foregroundStyle(AppTheme.primaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.82)
-
-            Text(verbatim: difficultyValue)
-                .font(AppTheme.schoolbell(isVeryCompact ? 13 : 16))
-                .foregroundStyle(tone)
-                .lineLimit(1)
-                .minimumScaleFactor(0.82)
-        }
-        .lineLimit(1)
-    }
-
-    private func deadlineDifficultyLabelRow(
-        difficultyText: String,
-        tone: Color,
-        isVeryCompact: Bool
-    ) -> some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(tone)
-                .frame(width: 7, height: 7)
-
-            Text(verbatim: difficultyText)
-                .font(AppTheme.schoolbell(isVeryCompact ? 9 : 11))
-                .foregroundStyle(AppTheme.primaryText)
-                .lineLimit(1)
-        }
-    }
-
-    private func confirmButton(for task: TaskItem, tone: Color, width: CGFloat, isVeryCompact: Bool) -> some View {
-        let isEnabled = canCompleteSession(for: task)
-
-        return Button {
-            guard isEnabled else { return }
-            withAnimation(.snappy) {
-                TaskManager(modelContext: modelContext).completeSession(for: task)
-            }
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "checkmark")
-                    .font(.system(size: isVeryCompact ? 11 : 13, weight: .semibold))
-
-                Text("Confirmar")
-                    .font(AppTheme.schoolbell(isVeryCompact ? 10 : 12))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            .foregroundStyle(isEnabled ? tone : tone.opacity(0.52))
-            .padding(.horizontal, isVeryCompact ? 8 : 10)
-            .frame(width: width, height: isVeryCompact ? 44 : 48)
-            .background {
-                Image("DeadlineCardButtonBackground")
-                    .resizable()
-                    .scaledToFill()
-            }
-        }
-        .buttonStyle(.plain)
-        .disabled(!isEnabled)
-    }
-
     private func deadlineProgressRow(
         progress: Double,
-        progressText: String,
-        progressLabelWidth: CGFloat,
+        sessionsProgressText: String,
         tone: Color,
         isVeryCompact: Bool
     ) -> some View {
@@ -574,10 +466,11 @@ struct TasksView: View {
             }
             .frame(height: 7)
 
-            Text(verbatim: progressText)
-                .font(AppTheme.schoolbell(isVeryCompact ? 11 : 13))
+            Text(verbatim: sessionsProgressText)
+                .font(AppTheme.schoolbell(isVeryCompact ? 10 : 12))
                 .foregroundStyle(AppTheme.primaryText)
-                .frame(width: progressLabelWidth, alignment: .trailing)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
         }
     }
 
@@ -665,14 +558,6 @@ struct TasksView: View {
         return formatter.string(from: task.deadlineDate)
     }
 
-    private func canCompleteSession(for task: TaskItem) -> Bool {
-        generatedTasks.contains { generatedTask in
-            generatedTask.parentTaskID == task.id
-                && Calendar.current.isDate(generatedTask.scheduledDate, inSameDayAs: .now)
-                && !generatedTask.isCompleted
-        }
-    }
-
     private func tone(for task: TaskItem) -> Color {
         switch task.perceivedDifficulty {
         case 0...30:
@@ -702,9 +587,7 @@ struct TasksView: View {
 
 private enum DeadlineFilter: String, CaseIterable, Identifiable {
     case all
-    case today
     case thisWeek
-    case later
 
     var id: String { rawValue }
 
@@ -712,12 +595,8 @@ private enum DeadlineFilter: String, CaseIterable, Identifiable {
         switch self {
         case .all:
             return "Todas"
-        case .today:
-            return "Hoje"
         case .thisWeek:
             return "Esta semana"
-        case .later:
-            return "Mais tarde"
         }
     }
 }

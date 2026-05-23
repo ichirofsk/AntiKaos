@@ -64,10 +64,6 @@ struct DashboardView: View {
         return Array(repeating: true, count: completedCount) + Array(repeating: false, count: pendingCount)
     }
 
-    private var pendingTodayTasks: [TodayTodoEntry] {
-        todayFocus.filter { !$0.isCompleted }
-    }
-
     private var weeklyPoints: [WeeklyIntensityPoint] {
         let calendar = Calendar.current
 
@@ -296,7 +292,7 @@ struct DashboardView: View {
             } else {
                 if isTodoExpanded {
                     VStack(alignment: .leading, spacing: 10) {
-                        ForEach(pendingTodayTasks) { task in
+                        ForEach(todayFocus) { task in
                             HStack(spacing: 10) {
                                 TodoStatusDot(isCompleted: task.isCompleted)
                                 Text(task.title)
