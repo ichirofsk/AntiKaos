@@ -65,7 +65,6 @@ struct TasksView: View {
                         header(isCompact: isCompact, isVeryCompact: isVeryCompact)
                         summaryCard(isCompact: isCompact, isVeryCompact: isVeryCompact)
                         filterRow(isCompact: isCompact, isVeryCompact: isVeryCompact)
-                        tasksSection(isCompact: isCompact, isVeryCompact: isVeryCompact)
                     }
                     .padding(.horizontal, isVeryCompact ? 14 : (isCompact ? 16 : 20))
                     .padding(.top, isVeryCompact ? 12 : (isCompact ? 14 : 18))
@@ -332,72 +331,94 @@ struct TasksView: View {
         let difficultyValue = "\(task.perceivedDifficulty)"
         let difficultyText = difficultyLabel(for: task)
         let dateLabel = deadlineDateLabel(for: task)
-        let cardHeight = isVeryCompact ? 116.0 : 122.0
-        let dateWidth = isVeryCompact ? 88.0 : 94.0
+        let relativeLabel = AppStrings.deadlineRelativeString(for: task.deadlineDate)
+        let cardHeight = isVeryCompact ? 122.0 : 128.0
+        let dateWidth = isVeryCompact ? 86.0 : 92.0
 
-        return HStack(alignment: .center, spacing: isVeryCompact ? 10 : 14) {
-            deadlineDateColumn(
-                dateLabel: dateLabel,
-                difficultyValue: difficultyValue,
-                tone: tone,
-                isVeryCompact: isVeryCompact
-            )
-            .frame(width: dateWidth)
-
-            Image("DeadlineCardDivider")
-                .resizable()
-                .renderingMode(.template)
-                .foregroundStyle(Color.black.opacity(0.16))
-                .frame(width: 1, height: cardHeight - 26)
-
-            deadlineInfoColumn(
-                title: task.title,
-                difficultyText: difficultyText,
-                progress: progress,
-                sessionsProgressText: sessionsProgressText,
-                tone: tone,
-                isVeryCompact: isVeryCompact
-            )
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .layoutPriority(1)
-        }
-        .padding(.horizontal, isVeryCompact ? 14 : 16)
-        .frame(maxWidth: .infinity, minHeight: cardHeight, maxHeight: cardHeight)
-        .background(deadlineCardBackground(tone: tone))
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .shadow(color: tone.opacity(0.06), radius: 12, x: 0, y: 5)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            editorRoute = .edit(task)
-        }
-        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-            Button(role: .destructive) {
+        return SwipeableDeadlineCard(
+            cardHeight: cardHeight,
+            tone: tone,
+            onDelete: {
                 withAnimation(.snappy) {
                     TaskManager(modelContext: modelContext).deleteTask(task)
                 }
-            } label: {
-                Label("Apagar", systemImage: "trash")
+            },
+            onTap: {
+                editorRoute = .edit(task)
             }
+        ) {
+            HStack(alignment: .center, spacing: isVeryCompact ? 10 : 14) {
+                deadlineDateColumn(
+                    dateLabel: dateLabel,
+                    relativeLabel: relativeLabel,
+                    tone: tone,
+                    isVeryCompact: isVeryCompact
+                )
+                .frame(width: dateWidth)
+
+                Rectangle()
+                    .fill(Color.black.opacity(0.12))
+                    .frame(width: 1, height: cardHeight - 26)
+
+                deadlineInfoColumn(
+                    title: task.title,
+                    difficultyValue: difficultyValue,
+                    difficultyText: difficultyText,
+                    progress: progress,
+                    sessionsProgressText: sessionsProgressText,
+                    tone: tone,
+                    isVeryCompact: isVeryCompact
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .layoutPriority(1)
+            }
+            .padding(.horizontal, isVeryCompact ? 14 : 16)
         }
     }
 
     private func deadlineDateColumn(
         dateLabel: String,
-        difficultyValue: String,
+        relativeLabel: String,
         tone: Color,
         isVeryCompact: Bool
     ) -> some View {
-        VStack(spacing: isVeryCompact ? 7 : 8) {
+        VStack(spacing: isVeryCompact ? 8 : 10) {
             Text(verbatim: dateLabel)
                 .font(AppTheme.schoolbell(isVeryCompact ? 20 : 24))
                 .foregroundStyle(tone)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
 
+            Text(verbatim: relativeLabel)
+                .font(AppTheme.schoolbell(isVeryCompact ? 11 : 13))
+                .foregroundStyle(AppTheme.primaryText)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxHeight: .infinity)
+    }
+
+    private func deadlineInfoColumn(
+        title: String,
+        difficultyValue: String,
+        difficultyText: String,
+        progress: Double,
+        sessionsProgressText: String,
+        tone: Color,
+        isVeryCompact: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: isVeryCompact ? 5 : 6) {
+            Text(verbatim: title)
+                .font(AppTheme.schoolbell(isVeryCompact ? 15 : 18))
+                .foregroundStyle(AppTheme.primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+
             HStack(spacing: 4) {
-                Text("Dif.")
-                    .font(AppTheme.schoolbell(isVeryCompact ? 10 : 12))
-                    .foregroundStyle(AppTheme.secondaryText)
+                Text("Dificuldade")
+                    .font(AppTheme.schoolbell(isVeryCompact ? 11 : 13))
+                    .foregroundStyle(AppTheme.primaryText)
 
                 Text(verbatim: difficultyValue)
                     .font(AppTheme.schoolbell(isVeryCompact ? 14 : 16))
@@ -405,26 +426,9 @@ struct TasksView: View {
             }
             .lineLimit(1)
             .minimumScaleFactor(0.8)
-        }
-    }
-
-    private func deadlineInfoColumn(
-        title: String,
-        difficultyText: String,
-        progress: Double,
-        sessionsProgressText: String,
-        tone: Color,
-        isVeryCompact: Bool
-    ) -> some View {
-        VStack(alignment: .leading, spacing: isVeryCompact ? 6 : 7) {
-            Text(verbatim: title)
-                .font(AppTheme.schoolbell(isVeryCompact ? 14 : 17))
-                .foregroundStyle(AppTheme.primaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
 
             Text(verbatim: difficultyText)
-                .font(AppTheme.schoolbell(isVeryCompact ? 10 : 12))
+                .font(AppTheme.schoolbell(isVeryCompact ? 11 : 13))
                 .foregroundStyle(tone)
                 .lineLimit(1)
 
@@ -451,12 +455,12 @@ struct TasksView: View {
 
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(AppTheme.track.opacity(0.95))
+                        .fill(Color.white.opacity(0.78))
 
                     Capsule()
                         .fill(
                             LinearGradient(
-                                colors: [tone.opacity(0.82), tone.opacity(0.66)],
+                                colors: [tone.opacity(0.92), tone.opacity(0.72)],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -475,15 +479,16 @@ struct TasksView: View {
     }
 
     private func deadlineCardBackground(tone: Color) -> some View {
-        ZStack {
-            Image("DeadlineCardBackground")
-                .resizable()
-                .scaledToFill()
-
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(tone.opacity(0.08))
-                .blendMode(.multiply)
-        }
+        RoundedRectangle(cornerRadius: 22, style: .continuous)
+            .fill(.ultraThinMaterial)
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(tone.opacity(0.10))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(tone.opacity(0.16), lineWidth: 1)
+            )
     }
 
     private func legendOverlay(isCompact: Bool, isVeryCompact: Bool) -> some View {
@@ -581,6 +586,95 @@ struct TasksView: View {
             return "Alta"
         default:
             return "Crítica"
+        }
+    }
+}
+
+private struct SwipeableDeadlineCard<Content: View>: View {
+    let cardHeight: CGFloat
+    let tone: Color
+    let onDelete: () -> Void
+    let onTap: () -> Void
+    @ViewBuilder let content: Content
+
+    @State private var offsetX: CGFloat = 0
+    @GestureState private var dragTranslation: CGFloat = 0
+
+    private let revealWidth: CGFloat = 108
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            Button {
+                onDelete()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("Apagar")
+                        .font(AppTheme.schoolbell(14))
+                }
+                .foregroundStyle(.white)
+                .frame(width: revealWidth, height: cardHeight - 28)
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color.red.opacity(0.88))
+                )
+            }
+            .buttonStyle(.plain)
+            .padding(.leading, 6)
+
+            content
+                .frame(maxWidth: .infinity, minHeight: cardHeight, maxHeight: cardHeight)
+                .background(deadlineCardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .shadow(color: tone.opacity(0.06), radius: 12, x: 0, y: 5)
+                .contentShape(Rectangle())
+                .offset(x: effectiveOffset)
+                .onTapGesture {
+                    if offsetX != 0 {
+                        withAnimation(.snappy) { offsetX = 0 }
+                    } else {
+                        onTap()
+                    }
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 10)
+                        .updating($dragTranslation) { value, state, _ in
+                            state = value.translation.width
+                        }
+                        .onEnded { value in
+                            let shouldOpen = value.translation.width > 36 || value.predictedEndTranslation.width > 60
+                            let shouldClose = value.translation.width < -24 || value.predictedEndTranslation.width < -40
+
+                            withAnimation(.snappy(duration: 0.22)) {
+                                if shouldOpen {
+                                    offsetX = revealWidth
+                                } else if shouldClose {
+                                    offsetX = 0
+                                } else {
+                                    offsetX = abs(offsetX) > revealWidth / 2 ? revealWidth : 0
+                                }
+                            }
+                        }
+                )
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    private var effectiveOffset: CGFloat {
+        let proposed = offsetX + dragTranslation
+        return max(0, min(revealWidth, proposed))
+    }
+
+    private var deadlineCardBackground: some View {
+        ZStack {
+            Image("DeadlineCardBackground")
+                .resizable()
+                .scaledToFill()
+
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(tone.opacity(0.08))
+                .blendMode(.multiply)
         }
     }
 }

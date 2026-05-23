@@ -4,12 +4,12 @@ import Combine
 
 struct DashboardView: View {
     @AppStorage("profile.userName") private var userName = ""
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \TaskItem.deadlineDate) private var tasks: [TaskItem]
     @Query(sort: \GeneratedTaskItem.scheduledDate) private var generatedTasks: [GeneratedTaskItem]
     @State private var currentDate = Date.now
     @State private var isTodoExpanded = false
     @State private var isShowingChaosInfo = false
-    @State private var isShowingTodayTodo = false
 
     let onOpenFocusMode: () -> Void
 
@@ -64,6 +64,36 @@ struct DashboardView: View {
         return Array(repeating: true, count: completedCount) + Array(repeating: false, count: pendingCount)
     }
 
+    private var didCompleteMission: Bool {
+        !todayFocus.isEmpty && todayFocus.allSatisfy(\.isCompleted)
+    }
+
+    private var nextActivityDate: Date? {
+        let startOfTomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: currentDate)) ?? currentDate
+
+        return generatedTasks
+            .filter { $0.scheduledDate >= startOfTomorrow && !$0.isCompleted }
+            .map(\.scheduledDate)
+            .min()
+    }
+
+    private var emptyTodoMessage: String {
+        guard let nextActivityDate else {
+            return AppStrings.localized("task.nextActivity.none")
+        }
+
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: currentDate)
+        let startOfActivityDay = calendar.startOfDay(for: nextActivityDate)
+        let dayCount = max(calendar.dateComponents([.day], from: startOfToday, to: startOfActivityDay).day ?? 0, 0)
+
+        if dayCount == 1 {
+            return AppStrings.localized("task.nextActivity.tomorrow")
+        }
+
+        return AppStrings.nextActivity(days: dayCount)
+    }
+
     private var weeklyPoints: [WeeklyIntensityPoint] {
         let calendar = Calendar.current
 
@@ -116,55 +146,57 @@ struct DashboardView: View {
     }
 
     var body: some View {
-        ZStack {
-            AppTheme.background.ignoresSafeArea()
+        GeometryReader { proxy in
+            let isCompact = proxy.size.width < 390
+            let isVeryCompact = proxy.size.width < 370
 
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 24) {
-                    header
-                    overviewCard
-                    todoCard
-                    weeklyCard
+            ZStack {
+                AppTheme.background.ignoresSafeArea()
+
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: isVeryCompact ? 18 : 24) {
+                        header(isVeryCompact: isVeryCompact)
+                        overviewCard(isCompact: isCompact, isVeryCompact: isVeryCompact)
+                        todoCard(isCompact: isCompact, isVeryCompact: isVeryCompact)
+                        weeklyCard(isCompact: isCompact, isVeryCompact: isVeryCompact)
+                    }
+                    .padding(.horizontal, isVeryCompact ? 16 : 20)
+                    .padding(.top, isVeryCompact ? 12 : 16)
+                    .padding(.bottom, 28)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 28)
-            }
 
-            if isShowingChaosInfo {
-                chaosInfoOverlay
-                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
-                    .zIndex(2)
+                if isShowingChaosInfo {
+                    chaosInfoOverlay
+                        .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                        .zIndex(2)
+                }
             }
         }
         .scribbleBackground()
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(isPresented: $isShowingTodayTodo) {
-            TodayTodoView()
-        }
         .animation(.easeInOut(duration: 0.22), value: isShowingChaosInfo)
         .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { date in
             currentDate = date
         }
     }
 
-    private var header: some View {
+    private func header(isVeryCompact: Bool) -> some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 6) {
                 if !greetingName.isEmpty {
                     Text("Olá, \(greetingName)")
-                        .font(AppTheme.schoolbell(34))
+                        .font(AppTheme.schoolbell(isVeryCompact ? 30 : 34))
                         .foregroundStyle(AppTheme.primaryText)
                 }
 
                 Text(AppStrings.headerDate(.now))
-                    .font(AppTheme.schoolbell(20))
+                    .font(AppTheme.schoolbell(isVeryCompact ? 18 : 20))
                     .foregroundStyle(AppTheme.secondaryText)
             }
         }
     }
 
-    private var overviewCard: some View {
+    private func overviewCard(isCompact: Bool, isVeryCompact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Spacer()
@@ -181,7 +213,7 @@ struct DashboardView: View {
 
             HStack {
                 Spacer()
-                ChaosCircle(value: overallChaos)
+                ChaosCircle(value: overallChaos, size: isVeryCompact ? 180 : (isCompact ? 194 : 208))
                 Spacer()
             }
         }
@@ -259,17 +291,12 @@ struct DashboardView: View {
         }
     }
 
-    private var todoCard: some View {
+    private func todoCard(isCompact: Bool, isVeryCompact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Button {
-                    isShowingTodayTodo = true
-                } label: {
-                    Text(AppStrings.localized("dashboard.todo"))
-                        .font(AppTheme.schoolbell(28))
-                        .foregroundStyle(AppTheme.primaryText)
-                }
-                .buttonStyle(.plain)
+                Text(AppStrings.localized("dashboard.todo"))
+                    .font(AppTheme.schoolbell(isVeryCompact ? 24 : 28))
+                    .foregroundStyle(AppTheme.primaryText)
 
                 Spacer()
 
@@ -286,19 +313,70 @@ struct DashboardView: View {
             }
 
             if todayFocus.isEmpty {
-                Text(AppStrings.localized("dashboard.todo.empty"))
+                Text(isTodoExpanded ? emptyTodoMessage : AppStrings.localized("dashboard.todo.empty"))
                     .font(AppTheme.schoolbell(16))
                     .foregroundStyle(AppTheme.secondaryText)
             } else {
                 if isTodoExpanded {
                     VStack(alignment: .leading, spacing: 10) {
+                        if didCompleteMission {
+                            Text(AppStrings.localized("dashboard.todo.missionComplete"))
+                                .font(AppTheme.schoolbell(isVeryCompact ? 18 : 20))
+                                .foregroundStyle(AppTheme.supportGreen)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.bottom, 2)
+                        }
+
                         ForEach(todayFocus) { task in
-                            HStack(spacing: 10) {
-                                TodoStatusDot(isCompleted: task.isCompleted)
-                                Text(task.title)
-                                    .font(AppTheme.schoolbell(18))
-                                    .foregroundStyle(AppTheme.primaryText)
-                                    .multilineTextAlignment(.leading)
+                            HStack(spacing: 12) {
+                                if !task.isCompleted {
+                                    Button {
+                                        complete(task)
+                                    } label: {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.system(size: isVeryCompact ? 18 : 20, weight: .semibold))
+                                            .foregroundStyle(Color.white)
+                                            .frame(width: isVeryCompact ? 40 : 44, height: isVeryCompact ? 40 : 44)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                                    .fill(AppTheme.supportGreen)
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+
+                                HStack(spacing: 10) {
+                                    TodoStatusDot(isCompleted: task.isCompleted)
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(task.title)
+                                            .font(AppTheme.schoolbell(isVeryCompact ? 16 : 18))
+                                            .foregroundStyle(AppTheme.primaryText)
+                                            .multilineTextAlignment(.leading)
+
+                                        Text(AppStrings.deadlineRelativeString(for: task.date))
+                                            .font(AppTheme.schoolbell(isVeryCompact ? 13 : 14))
+                                            .foregroundStyle(AppTheme.secondaryText)
+                                    }
+                                    Spacer()
+
+                                    if task.isCompleted {
+                                        Button {
+                                            uncomplete(task)
+                                        } label: {
+                                            Image(systemName: "arrow.uturn.backward.circle.fill")
+                                                .font(.system(size: isVeryCompact ? 18 : 20, weight: .medium))
+                                                .foregroundStyle(AppTheme.primaryChaos)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                        .fill(Color.white.opacity(0.62))
+                                )
                                 Spacer()
                             }
                         }
@@ -315,10 +393,6 @@ struct DashboardView: View {
             }
         }
         .softCard()
-        .contentShape(Rectangle())
-        .onTapGesture {
-            isShowingTodayTodo = true
-        }
     }
 
     private func starCount(completedTasks: Int, totalTasks: Int) -> Int {
@@ -337,11 +411,30 @@ struct DashboardView: View {
         return 1
     }
 
-    private var weeklyCard: some View {
+    private func complete(_ task: TodayTodoEntry) {
+        guard !task.isCompleted,
+              let parentTask = tasks.first(where: { $0.id == task.parentTaskID }) else {
+            return
+        }
+
+        withAnimation(.snappy) {
+            TaskManager(modelContext: modelContext).completeSession(for: parentTask)
+        }
+    }
+
+    private func uncomplete(_ task: TodayTodoEntry) {
+        guard task.isCompleted else { return }
+
+        withAnimation(.snappy) {
+            TaskManager(modelContext: modelContext).uncompleteGeneratedTask(id: task.generatedTaskID)
+        }
+    }
+
+    private func weeklyCard(isCompact: Bool, isVeryCompact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center) {
                 Text(AppStrings.localized("dashboard.weekly"))
-                    .font(AppTheme.schoolbell(28))
+                    .font(AppTheme.schoolbell(isVeryCompact ? 24 : 28))
                     .foregroundStyle(AppTheme.primaryText)
 
                 Spacer(minLength: 12)
@@ -351,7 +444,7 @@ struct DashboardView: View {
                         .font(.system(size: 16, weight: .bold))
 
                     Text("\(noDelayStreak)")
-                        .font(AppTheme.schoolbell(18))
+                        .font(AppTheme.schoolbell(isVeryCompact ? 16 : 18))
                 }
                 .foregroundStyle(AppTheme.primaryChaos)
                 .padding(.horizontal, 10)

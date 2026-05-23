@@ -72,18 +72,23 @@ struct ProfileView: View {
     }
 
     var body: some View {
-        ZStack {
-            AppTheme.background.ignoresSafeArea()
+        GeometryReader { proxy in
+            let isCompact = proxy.size.width < 390
+            let isVeryCompact = proxy.size.width < 370
 
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 18) {
-                    headerSection
-                    overviewSection
-                    availableHoursSection
-                    historySection
+            ZStack {
+                AppTheme.background.ignoresSafeArea()
+
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: isVeryCompact ? 14 : 18) {
+                        headerSection(isCompact: isCompact, isVeryCompact: isVeryCompact)
+                        overviewSection(isCompact: isCompact, isVeryCompact: isVeryCompact)
+                        availableHoursSection
+                        historySection(isCompact: isCompact, isVeryCompact: isVeryCompact)
+                    }
+                    .padding(.horizontal, isVeryCompact ? 16 : 20)
+                    .padding(.vertical, isVeryCompact ? 14 : 18)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 18)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -94,11 +99,11 @@ struct ProfileView: View {
         }
     }
 
-    private var headerSection: some View {
+    private func headerSection(isCompact: Bool, isVeryCompact: Bool) -> some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(greetingText)
-                    .font(AppTheme.schoolbell(22))
+                    .font(AppTheme.schoolbell(isVeryCompact ? 20 : 22))
                     .foregroundStyle(AppTheme.primaryText)
 
                 if isEditingUserName {
@@ -127,12 +132,14 @@ struct ProfileView: View {
                     }
                 } else {
                     Text(profileHeaderTitle)
-                        .font(AppTheme.schoolbell(44))
+                        .font(AppTheme.schoolbell(isVeryCompact ? 36 : (isCompact ? 40 : 44)))
                         .foregroundStyle(AppTheme.primaryText)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
                 }
 
                 Text("Seu caos está \(chaosDisplayName.lowercased()) hoje.")
-                    .font(AppTheme.schoolbell(20))
+                    .font(AppTheme.schoolbell(isVeryCompact ? 18 : 20))
                     .foregroundStyle(AppTheme.secondaryText)
             }
 
@@ -152,7 +159,7 @@ struct ProfileView: View {
                 Image(systemName: "pencil")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(AppTheme.primaryChaos)
-                    .frame(width: 42, height: 42)
+                    .frame(width: isVeryCompact ? 38 : 42, height: isVeryCompact ? 38 : 42)
                     .background(
                         Circle()
                             .fill(Color.white.opacity(0.72))
@@ -166,17 +173,17 @@ struct ProfileView: View {
         }
     }
 
-    private var overviewSection: some View {
+    private func overviewSection(isCompact: Bool, isVeryCompact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Visão geral")
-                        .font(AppTheme.schoolbell(24))
+                        .font(AppTheme.schoolbell(isVeryCompact ? 22 : 24))
                         .foregroundStyle(AppTheme.primaryChaos)
 
                     HStack(spacing: 8) {
                         Text("Caos médio da semana")
-                            .font(AppTheme.schoolbell(18))
+                            .font(AppTheme.schoolbell(isVeryCompact ? 16 : 18))
                             .foregroundStyle(AppTheme.primaryText)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
@@ -194,11 +201,11 @@ struct ProfileView: View {
                     }
 
                     Text("\(averageWeeklyChaos)/100")
-                        .font(AppTheme.schoolbell(28))
+                        .font(AppTheme.schoolbell(isVeryCompact ? 24 : 28))
                         .foregroundStyle(ChaosLevel(value: averageWeeklyChaos).tint)
 
                     Text(weeklyChaosDisplayName)
-                        .font(AppTheme.schoolbell(18))
+                        .font(AppTheme.schoolbell(isVeryCompact ? 16 : 18))
                         .foregroundStyle(ChaosLevel(value: averageWeeklyChaos).tint)
                         .padding(.horizontal, 18)
                         .padding(.vertical, 8)
@@ -216,28 +223,62 @@ struct ProfileView: View {
             Divider()
                 .overlay(AppTheme.primaryText.opacity(0.08))
 
-            HStack(spacing: 0) {
-                overviewMetric(
-                    value: AppStrings.integerValue(completedTasksCount),
-                    title: "Tarefas\nconcluídas",
-                    tint: AppTheme.supportGreen
-                )
+            if isVeryCompact {
+                VStack(spacing: 14) {
+                    overviewMetric(
+                        value: AppStrings.integerValue(completedTasksCount),
+                        title: "Tarefas\nconcluídas",
+                        tint: AppTheme.supportGreen,
+                        isVeryCompact: isVeryCompact
+                    )
 
-                overviewDivider
+                    Divider()
+                        .overlay(AppTheme.primaryText.opacity(0.08))
 
-                overviewMetric(
-                    value: AppStrings.integerValue(completedSessionsCount),
-                    title: "Sessões\nrealizadas",
-                    tint: AppTheme.primaryChaos
-                )
+                    overviewMetric(
+                        value: AppStrings.integerValue(completedSessionsCount),
+                        title: "Sessões\nrealizadas",
+                        tint: AppTheme.primaryChaos,
+                        isVeryCompact: isVeryCompact
+                    )
 
-                overviewDivider
+                    Divider()
+                        .overlay(AppTheme.primaryText.opacity(0.08))
 
-                overviewMetric(
-                    value: weeklyAvailableHoursText,
-                    title: "Tempo disponível\nesta semana",
-                    tint: AppTheme.supportGreen
-                )
+                    overviewMetric(
+                        value: weeklyAvailableHoursText,
+                        title: "Tempo disponível\nesta semana",
+                        tint: AppTheme.supportGreen,
+                        isVeryCompact: isVeryCompact
+                    )
+                }
+            } else {
+                HStack(spacing: 0) {
+                    overviewMetric(
+                        value: AppStrings.integerValue(completedTasksCount),
+                        title: "Tarefas\nconcluídas",
+                        tint: AppTheme.supportGreen,
+                        isVeryCompact: isVeryCompact
+                    )
+
+                    overviewDivider(isVeryCompact: isVeryCompact)
+
+                    overviewMetric(
+                        value: AppStrings.integerValue(completedSessionsCount),
+                        title: "Sessões\nrealizadas",
+                        tint: AppTheme.primaryChaos,
+                        isVeryCompact: isVeryCompact
+                    )
+
+                    overviewDivider(isVeryCompact: isVeryCompact)
+
+                    overviewMetric(
+                        value: weeklyAvailableHoursText,
+                        title: "Tempo disponível\nesta semana",
+                        tint: AppTheme.supportGreen,
+                        isVeryCompact: isVeryCompact
+                    )
+                }
             }
         }
         .softCard()
@@ -249,14 +290,14 @@ struct ProfileView: View {
         }
     }
 
-    private func overviewMetric(value: String, title: String, tint: Color) -> some View {
+    private func overviewMetric(value: String, title: String, tint: Color, isVeryCompact: Bool) -> some View {
         VStack(spacing: 8) {
             Text(value)
-                .font(AppTheme.schoolbell(31))
+                .font(AppTheme.schoolbell(isVeryCompact ? 26 : 31))
                 .foregroundStyle(tint)
 
             Text(title)
-                .font(AppTheme.schoolbell(15))
+                .font(AppTheme.schoolbell(isVeryCompact ? 14 : 15))
                 .foregroundStyle(AppTheme.primaryText)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
@@ -266,10 +307,10 @@ struct ProfileView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var overviewDivider: some View {
+    private func overviewDivider(isVeryCompact: Bool) -> some View {
         Rectangle()
             .fill(AppTheme.primaryText.opacity(0.08))
-            .frame(width: 1, height: 116)
+            .frame(width: 1, height: isVeryCompact ? 96 : 116)
     }
 
     private var chaosInfoBubble: some View {
@@ -310,11 +351,11 @@ struct ProfileView: View {
         }
     }
 
-    private var historySection: some View {
+    private func historySection(isCompact: Bool, isVeryCompact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text(AppStrings.localized("history.title"))
-                    .font(AppTheme.schoolbell(24))
+                    .font(AppTheme.schoolbell(isVeryCompact ? 22 : 24))
                     .foregroundStyle(AppTheme.primaryText)
 
                 Spacer()
@@ -327,7 +368,7 @@ struct ProfileView: View {
                     } label: {
                         HStack(spacing: 6) {
                             Text(isHistoryExpanded ? "Ver menos" : "Ver mais")
-                                .font(AppTheme.schoolbell(18))
+                                .font(AppTheme.schoolbell(isVeryCompact ? 16 : 18))
                             Image(systemName: isHistoryExpanded ? "chevron.up" : "chevron.down")
                                 .font(.system(size: 14, weight: .semibold))
                         }
@@ -353,18 +394,18 @@ struct ProfileView: View {
 
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(entry.message)
-                                    .font(AppTheme.schoolbell(18))
+                                    .font(AppTheme.schoolbell(isVeryCompact ? 16 : 18))
                                     .foregroundStyle(AppTheme.primaryText)
 
                                 Text(AppStrings.historyDate(entry.date))
-                                    .font(AppTheme.schoolbell(14))
+                                    .font(AppTheme.schoolbell(isVeryCompact ? 13 : 14))
                                     .foregroundStyle(AppTheme.secondaryText)
                             }
 
                             Spacer()
 
                             Text(AppStrings.scoreCompact(entry.chaosValue))
-                                .font(AppTheme.schoolbell(14))
+                                .font(AppTheme.schoolbell(isVeryCompact ? 13 : 14))
                                 .foregroundStyle(ChaosLevel(value: entry.chaosValue).tint)
                         }
                         .padding(.vertical, 12)
