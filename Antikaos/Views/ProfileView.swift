@@ -295,6 +295,8 @@ struct ProfileView: View {
             Text(value)
                 .font(AppTheme.schoolbell(isVeryCompact ? 26 : 31))
                 .foregroundStyle(tint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
 
             Text(title)
                 .font(AppTheme.schoolbell(isVeryCompact ? 14 : 15))
@@ -346,7 +348,9 @@ struct ProfileView: View {
             AvailableHoursCard(
                 availableHours: availableHours,
                 isEditing: $isEditingAvailableHours,
-                onChange: saveAvailableHours
+                onChange: saveAvailableHours,
+                isCompact: UIScreen.main.bounds.width < 390,
+                isVeryCompact: UIScreen.main.bounds.width < 370
             )
         }
     }
@@ -482,6 +486,8 @@ struct AvailableHoursCard: View {
     @Bindable var availableHours: modelHorasDisponiveis
     @Binding var isEditing: Bool
     let onChange: () -> Void
+    var isCompact: Bool = false
+    var isVeryCompact: Bool = false
     var showsHeader = true
     var allowsEditingToggle = true
     @State private var draftMinutes: [AvailableWeekday: Int] = [:]
@@ -502,9 +508,9 @@ struct AvailableHoursCard: View {
                     } label: {
                         HStack(spacing: 12) {
                             Text(day.shortTitle.capitalized)
-                                .font(AppTheme.schoolbell(20))
+                                .font(AppTheme.schoolbell(isVeryCompact ? 17 : (isCompact ? 18 : 20)))
                                 .foregroundStyle(AppTheme.primaryText)
-                                .frame(width: 44, alignment: .leading)
+                                .frame(width: isVeryCompact ? 34 : (isCompact ? 38 : 44), alignment: .leading)
 
                             Slider(
                                 value: Binding(
@@ -518,9 +524,10 @@ struct AvailableHoursCard: View {
                             .disabled(!isEditing)
 
                             Text(modelHorasDisponiveis.formattedTime(minutes: displayedMinutes(for: day)))
-                                .font(AppTheme.schoolbell(18))
+                                .font(AppTheme.schoolbell(isVeryCompact ? 15 : (isCompact ? 16 : 18)))
                                 .foregroundStyle(AppTheme.primaryChaos)
-                                .frame(width: 82, alignment: .trailing)
+                                .frame(width: isVeryCompact ? 58 : (isCompact ? 68 : 82), alignment: .trailing)
+                                .minimumScaleFactor(0.75)
                         }
                     }
                     .buttonStyle(.plain)
@@ -581,8 +588,10 @@ struct AvailableHoursCard: View {
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
             Text("Meu tempo disponível")
-                .font(AppTheme.schoolbell(24))
+                .font(AppTheme.schoolbell(isVeryCompact ? 21 : (isCompact ? 22 : 24)))
                 .foregroundStyle(AppTheme.primaryText)
+                .lineLimit(2)
+                .minimumScaleFactor(0.82)
 
             Spacer()
 
@@ -598,29 +607,33 @@ struct AvailableHoursCard: View {
         HStack(spacing: 14) {
             Circle()
                 .fill(AppTheme.primaryChaos.opacity(0.14))
-                .frame(width: 52, height: 52)
+                .frame(width: isVeryCompact ? 46 : 52, height: isVeryCompact ? 46 : 52)
                 .overlay {
                     Image(systemName: "clock")
-                        .font(.system(size: 22, weight: .regular))
+                        .font(.system(size: isVeryCompact ? 18 : 22, weight: .regular))
                         .foregroundStyle(AppTheme.primaryChaos)
                 }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Total semanal")
-                    .font(AppTheme.schoolbell(17))
+                    .font(AppTheme.schoolbell(isVeryCompact ? 15 : 17))
                     .foregroundStyle(AppTheme.secondaryText)
 
                 Text(modelHorasDisponiveis.formattedTime(minutes: weeklyTotalMinutes))
-                    .font(AppTheme.schoolbell(24))
+                    .font(AppTheme.schoolbell(isVeryCompact ? 21 : (isCompact ? 22 : 24)))
                     .foregroundStyle(AppTheme.primaryChaos)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
 
             Spacer()
 
             Text("70h disponíveis")
-                .font(AppTheme.schoolbell(17))
+                .font(AppTheme.schoolbell(isVeryCompact ? 14 : (isCompact ? 15 : 17)))
                 .foregroundStyle(AppTheme.secondaryText)
                 .multilineTextAlignment(.trailing)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
@@ -646,9 +659,9 @@ struct AvailableHoursCard: View {
                     }
                 } label: {
                     Text("Salvar")
-                        .font(AppTheme.schoolbell(18))
+                        .font(AppTheme.schoolbell(isVeryCompact ? 16 : 18))
                         .foregroundStyle(Color.white)
-                        .padding(.horizontal, 14)
+                        .padding(.horizontal, isVeryCompact ? 12 : 14)
                         .frame(height: 36)
                         .background(
                             Capsule()
