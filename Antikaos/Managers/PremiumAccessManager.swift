@@ -5,8 +5,10 @@ import Combine
 @MainActor
 final class PremiumAccessManager: ObservableObject {
     static let unlimitedHistoryProductID = "br.com.antonio.Antikaos.unlimitedHistory"
+    static let unlimitedDeadlinesProductID = "br.com.antonio.Antikaos.unlimitedDeadlines"
 
     @Published private(set) var hasUnlimitedHistory = false
+    @Published private(set) var hasUnlimitedDeadlines = false
 
     private var updatesTask: Task<Void, Never>?
 
@@ -23,18 +25,24 @@ final class PremiumAccessManager: ObservableObject {
     }
 
     func refreshEntitlements() async {
-        var unlocked = false
+        var historyUnlocked = false
+        var deadlinesUnlocked = false
 
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result else { continue }
             guard transaction.revocationDate == nil else { continue }
 
             if transaction.productID == Self.unlimitedHistoryProductID {
-                unlocked = true
+                historyUnlocked = true
+            }
+
+            if transaction.productID == Self.unlimitedDeadlinesProductID {
+                deadlinesUnlocked = true
             }
         }
 
-        hasUnlimitedHistory = unlocked
+        hasUnlimitedHistory = historyUnlocked
+        hasUnlimitedDeadlines = deadlinesUnlocked
     }
 
     func restorePurchases() async {

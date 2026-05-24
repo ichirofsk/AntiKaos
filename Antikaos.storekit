@@ -23,6 +23,26 @@
       "productID" : "br.com.antonio.Antikaos.unlimitedHistory",
       "referenceName" : "Unlimited History",
       "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "D14A3C2B",
+      "localizations" : [
+        {
+          "description" : "Desbloqueia a criação ilimitada de deadlines no Antikaos.",
+          "displayName" : "Deadlines ilimitadas",
+          "locale" : "pt_BR"
+        },
+        {
+          "description" : "Unlocks unlimited deadline creation in Antikaos.",
+          "displayName" : "Unlimited deadlines",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "br.com.antonio.Antikaos.unlimitedDeadlines",
+      "referenceName" : "Unlimited Deadlines",
+      "type" : "NonConsumable"
     }
   ],
   "settings" : {

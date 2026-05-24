@@ -1,14 +1,19 @@
 import SwiftUI
 import SwiftData
+import StoreKit
 
 struct TasksView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var premiumAccessManager: PremiumAccessManager
     @Query(sort: \TaskItem.deadlineDate, order: .forward) private var tasks: [TaskItem]
     @Query(sort: \GeneratedTaskItem.scheduledDate, order: .forward) private var generatedTasks: [GeneratedTaskItem]
 
     @State private var editorRoute: TaskEditorRoute?
     @State private var selectedFilter: DeadlineFilter = .all
     @State private var isShowingLegend = false
+    @State private var isShowingDeadlinePaywall = false
+
+    private let freeDeadlineLimit = 5
 
     private var pendingTasks: [TaskItem] {
         tasks
@@ -50,6 +55,10 @@ struct TasksView: View {
 
     private var impactLevel: ChaosLevel {
         ChaosLevel(value: ChaosCalculator.overallChaos(for: pendingTasks))
+    }
+
+    private var canCreateDeadline: Bool {
+        premiumAccessManager.hasUnlimitedDeadlines || tasks.count < freeDeadlineLimit
     }
 
     var body: some View {
@@ -98,6 +107,11 @@ struct TasksView: View {
             }
             .presentationDetents([.large])
         }
+        .sheet(isPresented: $isShowingDeadlinePaywall) {
+            UnlimitedDeadlinesPaywallView(limit: freeDeadlineLimit)
+                .environmentObject(premiumAccessManager)
+                .presentationDetents([.medium, .large])
+        }
     }
 
     private func header(isCompact: Bool, isVeryCompact: Bool) -> some View {
@@ -128,7 +142,11 @@ struct TasksView: View {
                 .buttonStyle(.plain)
 
                 Button {
-                    editorRoute = .create
+                    if canCreateDeadline {
+                        editorRoute = .create
+                    } else {
+                        isShowingDeadlinePaywall = true
+                    }
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: isVeryCompact ? 18 : (isCompact ? 20 : 22), weight: .bold))
@@ -650,6 +668,97 @@ struct TasksView: View {
         withAnimation(.snappy) {
             modelContext.delete(task)
             try? modelContext.save()
+        }
+    }
+}
+
+private struct UnlimitedDeadlinesPaywallView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var premiumAccessManager: PremiumAccessManager
+
+    let limit: Int
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Deadlines ilimitadas")
+                        .font(AppTheme.schoolbell(30))
+                        .foregroundStyle(AppTheme.primaryText)
+
+                    Text("Na versão gratuita você pode criar até \(limit) deadlines. Desbloqueie a versão completa para criar quantas quiser.")
+                        .font(AppTheme.schoolbell(18))
+                        .foregroundStyle(AppTheme.secondaryText)
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    benefitRow("Crie deadlines sem limite")
+                    benefitRow("Continue usando a mesma identidade do app")
+                    benefitRow("Compra única, ideal para a proposta 1 Dollar App")
+                }
+                .padding(18)
+                .background(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(Color.white.opacity(0.82))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                .stroke(AppTheme.primaryChaos.opacity(0.16), lineWidth: 1)
+                        )
+                )
+
+                ProductView(id: PremiumAccessManager.unlimitedDeadlinesProductID)
+                    .productViewStyle(.large)
+                    .padding(18)
+                    .background(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                    .stroke(AppTheme.primaryChaos.opacity(0.18), lineWidth: 1)
+                            )
+                    )
+
+                Button {
+                    Task {
+                        await premiumAccessManager.restorePurchases()
+                    }
+                } label: {
+                    Text("Restaurar compra")
+                        .font(AppTheme.schoolbell(18))
+                        .foregroundStyle(AppTheme.primaryChaos)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .stroke(AppTheme.primaryChaos.opacity(0.3), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background.ignoresSafeArea())
+        .presentationDragIndicator(.visible)
+        .onAppear {
+            Task {
+                await premiumAccessManager.refreshEntitlements()
+            }
+        }
+        .onChange(of: premiumAccessManager.hasUnlimitedDeadlines) { _, isUnlocked in
+            if isUnlocked {
+                dismiss()
+            }
+        }
+    }
+
+    private func benefitRow(_ text: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(AppTheme.primaryChaos)
+
+            Text(text)
+                .font(AppTheme.schoolbell(16))
+                .foregroundStyle(AppTheme.primaryText)
         }
     }
 }
