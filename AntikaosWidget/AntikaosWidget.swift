@@ -5,6 +5,7 @@ enum WidgetShared {
     static let appGroupID = "group.br.com.antonio.Antikaos"
     static let widgetKind = "AntikaosChaosWidget"
     static let chaosValueKey = "widget.chaosValue"
+    static let deadlinesKey = "widget.deadlines"
 }
 
 private enum WidgetFont {
@@ -20,11 +21,29 @@ private enum WidgetFont {
 struct AntikaosWidgetEntry: TimelineEntry {
     let date: Date
     let chaosValue: Int
+    let deadlines: [WidgetDeadlineEntry]
+}
+
+struct WidgetDeadlineEntry: Codable, Identifiable {
+    let id: UUID
+    let title: String
+    let deadlineDate: Date
+    let difficulty: Int
+    let completedSessions: Int
+    let totalSessions: Int
 }
 
 struct AntikaosWidgetProvider: TimelineProvider {
     func placeholder(in context: Context) -> AntikaosWidgetEntry {
-        AntikaosWidgetEntry(date: .now, chaosValue: 34)
+        AntikaosWidgetEntry(
+            date: .now,
+            chaosValue: 34,
+            deadlines: [
+                .init(id: UUID(), title: "Prova de Cálculo", deadlineDate: .now.addingTimeInterval(86400), difficulty: 74, completedSessions: 1, totalSessions: 3),
+                .init(id: UUID(), title: "Trabalho de Design", deadlineDate: .now.addingTimeInterval(172800), difficulty: 48, completedSessions: 2, totalSessions: 4),
+                .init(id: UUID(), title: "Estudar SwiftUI", deadlineDate: .now.addingTimeInterval(345600), difficulty: 26, completedSessions: 0, totalSessions: 2)
+            ]
+        )
     }
 
     func getSnapshot(in context: Context, completion: @escaping (AntikaosWidgetEntry) -> Void) {
@@ -40,7 +59,15 @@ struct AntikaosWidgetProvider: TimelineProvider {
     private func loadEntry() -> AntikaosWidgetEntry {
         let defaults = UserDefaults(suiteName: WidgetShared.appGroupID)
         let value = defaults?.integer(forKey: WidgetShared.chaosValueKey) ?? 0
-        return AntikaosWidgetEntry(date: .now, chaosValue: value)
+        let deadlines: [WidgetDeadlineEntry]
+        if let data = defaults?.data(forKey: WidgetShared.deadlinesKey),
+           let decoded = try? JSONDecoder().decode([WidgetDeadlineEntry].self, from: data) {
+            deadlines = decoded
+        } else {
+            deadlines = []
+        }
+
+        return AntikaosWidgetEntry(date: .now, chaosValue: value, deadlines: deadlines)
     }
 }
 
@@ -91,12 +118,22 @@ private enum WidgetChaosLevel {
 }
 
 struct AntikaosChaosWidgetView: View {
+    @Environment(\.widgetFamily) private var family
     var entry: AntikaosWidgetProvider.Entry
 
     var body: some View {
+        switch family {
+        case .systemMedium:
+            mediumWidget
+        default:
+            smallWidget
+        }
+    }
+
+    private var smallWidget: some View {
         let level = WidgetChaosLevel(value: entry.chaosValue)
 
-        VStack(spacing: 12) {
+        return VStack(spacing: 12) {
             ZStack {
                 Circle()
                     .stroke(Color(red: 234 / 255, green: 225 / 255, blue: 218 / 255), lineWidth: 14)
@@ -131,6 +168,150 @@ struct AntikaosChaosWidgetView: View {
             Color(red: 244 / 255, green: 237 / 255, blue: 232 / 255)
         }
     }
+
+    private var mediumWidget: some View {
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Próximas deadlines")
+                        .font(WidgetFont.schoolbell(size: 22))
+                        .foregroundStyle(Color.black.opacity(0.88))
+
+                    Text(statusSummary)
+                        .font(WidgetFont.schoolbell(size: 13))
+                        .foregroundStyle(Color.black.opacity(0.52))
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 10)
+
+                ZStack {
+                    Circle()
+                        .stroke(Color(red: 234 / 255, green: 225 / 255, blue: 218 / 255), lineWidth: 10)
+
+                    Circle()
+                        .trim(from: 0, to: CGFloat(Double(entry.chaosValue) / 100))
+                        .stroke(WidgetChaosLevel(value: entry.chaosValue).tint, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+
+                    Text("\(entry.chaosValue)")
+                        .font(WidgetFont.schoolbell(size: 22))
+                        .foregroundStyle(Color.black.opacity(0.88))
+                }
+                .frame(width: 70, height: 70)
+            }
+
+            if entry.deadlines.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Nenhuma deadline ativa")
+                        .font(WidgetFont.schoolbell(size: 18))
+                        .foregroundStyle(Color.black.opacity(0.84))
+
+                    Text("Seu caos está sob controle por enquanto.")
+                        .font(WidgetFont.schoolbell(size: 13))
+                        .foregroundStyle(Color.black.opacity(0.54))
+                }
+                .frame(maxHeight: .infinity, alignment: .center)
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(entry.deadlines.prefix(3)) { deadline in
+                        deadlineRow(deadline)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(16)
+        .containerBackground(for: .widget) {
+            Color(red: 244 / 255, green: 237 / 255, blue: 232 / 255)
+        }
+    }
+
+    private var statusSummary: String {
+        let count = entry.deadlines.count
+        if count == 0 {
+            return "Sem prazos por agora"
+        } else if count == 1 {
+            return "1 deadline próxima"
+        } else {
+            return "\(count) deadlines próximas"
+        }
+    }
+
+    @ViewBuilder
+    private func deadlineRow(_ deadline: WidgetDeadlineEntry) -> some View {
+        let tint = tint(for: deadline.difficulty)
+
+        HStack(spacing: 10) {
+            Circle()
+                .fill(tint)
+                .frame(width: 10, height: 10)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(deadline.title)
+                    .font(WidgetFont.schoolbell(size: 17))
+                    .foregroundStyle(Color.black.opacity(0.86))
+                    .lineLimit(1)
+
+                Text(deadlineMeta(for: deadline))
+                    .font(WidgetFont.schoolbell(size: 12))
+                    .foregroundStyle(tint)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            Text(shortDate(for: deadline.deadlineDate))
+                .font(WidgetFont.schoolbell(size: 14))
+                .foregroundStyle(Color.black.opacity(0.58))
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.white.opacity(0.58))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(tint.opacity(0.16), lineWidth: 1)
+                )
+        )
+    }
+
+    private func deadlineMeta(for deadline: WidgetDeadlineEntry) -> String {
+        let sessions = "\(deadline.completedSessions)/\(max(deadline.totalSessions, 1)) sessões"
+        let due = relativeDueText(for: deadline.deadlineDate)
+        return "\(sessions) • \(due)"
+    }
+
+    private func shortDate(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "pt_BR")
+        formatter.dateFormat = "dd/MM"
+        return formatter.string(from: date)
+    }
+
+    private func relativeDueText(for date: Date) -> String {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: .now)
+        let end = calendar.startOfDay(for: date)
+        let days = calendar.dateComponents([.day], from: start, to: end).day ?? 0
+
+        switch days {
+        case ..<0:
+            return "atrasada"
+        case 0:
+            return "hoje"
+        case 1:
+            return "amanhã"
+        default:
+            return "em \(days)d"
+        }
+    }
+
+    private func tint(for difficulty: Int) -> Color {
+        WidgetChaosLevel(value: difficulty).tint
+    }
 }
 
 struct AntikaosChaosWidget: Widget {
@@ -141,8 +322,8 @@ struct AntikaosChaosWidget: Widget {
             AntikaosChaosWidgetView(entry: entry)
         }
         .configurationDisplayName("Caos do usuário")
-        .description("Mostra o caos atual do usuário.")
-        .supportedFamilies([.systemSmall])
+        .description("Mostra o caos atual e as próximas deadlines do usuário.")
+        .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
 
