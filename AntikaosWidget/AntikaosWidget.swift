@@ -170,65 +170,78 @@ struct AntikaosChaosWidgetView: View {
     }
 
     private var mediumWidget: some View {
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Próximas deadlines")
-                        .font(WidgetFont.schoolbell(size: 22))
-                        .foregroundStyle(Color.black.opacity(0.88))
+        GeometryReader { proxy in
+            let visibleDeadlines = Array(entry.deadlines.prefix(3))
+            let deadlineCount = visibleDeadlines.count
+            let compact = proxy.size.width < 340 || deadlineCount >= 3
+            let titleSize: CGFloat = compact ? 20 : 22
+            let summarySize: CGFloat = compact ? 12 : 13
+            let circleSize: CGFloat = compact ? 62 : 70
+            let rowSpacing: CGFloat = deadlineCount <= 1 ? 10 : 8
 
-                    Text(statusSummary)
-                        .font(WidgetFont.schoolbell(size: 13))
-                        .foregroundStyle(Color.black.opacity(0.52))
-                        .lineLimit(1)
+            VStack(alignment: .leading, spacing: compact ? 10 : 12) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Próximas deadlines")
+                            .font(WidgetFont.schoolbell(size: titleSize))
+                            .foregroundStyle(Color.black.opacity(0.88))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+
+                        Text(statusSummary(for: deadlineCount))
+                            .font(WidgetFont.schoolbell(size: summarySize))
+                            .foregroundStyle(Color.black.opacity(0.52))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+
+                    Spacer(minLength: 10)
+
+                    ZStack {
+                        Circle()
+                            .stroke(Color(red: 234 / 255, green: 225 / 255, blue: 218 / 255), lineWidth: compact ? 8 : 10)
+
+                        Circle()
+                            .trim(from: 0, to: CGFloat(Double(entry.chaosValue) / 100))
+                            .stroke(WidgetChaosLevel(value: entry.chaosValue).tint, style: StrokeStyle(lineWidth: compact ? 8 : 10, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+
+                        Text("\(entry.chaosValue)")
+                            .font(WidgetFont.schoolbell(size: compact ? 20 : 22))
+                            .foregroundStyle(Color.black.opacity(0.88))
+                            .minimumScaleFactor(0.8)
+                    }
+                    .frame(width: circleSize, height: circleSize)
                 }
 
-                Spacer(minLength: 10)
+                if visibleDeadlines.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Nenhuma deadline ativa")
+                            .font(WidgetFont.schoolbell(size: compact ? 16 : 18))
+                            .foregroundStyle(Color.black.opacity(0.84))
 
-                ZStack {
-                    Circle()
-                        .stroke(Color(red: 234 / 255, green: 225 / 255, blue: 218 / 255), lineWidth: 10)
-
-                    Circle()
-                        .trim(from: 0, to: CGFloat(Double(entry.chaosValue) / 100))
-                        .stroke(WidgetChaosLevel(value: entry.chaosValue).tint, style: StrokeStyle(lineWidth: 10, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-
-                    Text("\(entry.chaosValue)")
-                        .font(WidgetFont.schoolbell(size: 22))
-                        .foregroundStyle(Color.black.opacity(0.88))
-                }
-                .frame(width: 70, height: 70)
-            }
-
-            if entry.deadlines.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Nenhuma deadline ativa")
-                        .font(WidgetFont.schoolbell(size: 18))
-                        .foregroundStyle(Color.black.opacity(0.84))
-
-                    Text("Seu caos está sob controle por enquanto.")
-                        .font(WidgetFont.schoolbell(size: 13))
-                        .foregroundStyle(Color.black.opacity(0.54))
-                }
-                .frame(maxHeight: .infinity, alignment: .center)
-            } else {
-                VStack(spacing: 8) {
-                    ForEach(entry.deadlines.prefix(3)) { deadline in
-                        deadlineRow(deadline)
+                        Text("Seu caos está sob controle por enquanto.")
+                            .font(WidgetFont.schoolbell(size: compact ? 12 : 13))
+                            .foregroundStyle(Color.black.opacity(0.54))
+                    }
+                    .frame(maxHeight: .infinity, alignment: .center)
+                } else {
+                    VStack(spacing: rowSpacing) {
+                        ForEach(visibleDeadlines) { deadline in
+                            deadlineRow(deadline, compact: compact, multiLineTitle: deadlineCount == 1)
+                        }
                     }
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(compact ? 14 : 16)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(16)
         .containerBackground(for: .widget) {
             Color(red: 244 / 255, green: 237 / 255, blue: 232 / 255)
         }
     }
 
-    private var statusSummary: String {
-        let count = entry.deadlines.count
+    private func statusSummary(for count: Int) -> String {
         if count == 0 {
             return "Sem prazos por agora"
         } else if count == 1 {
@@ -239,35 +252,38 @@ struct AntikaosChaosWidgetView: View {
     }
 
     @ViewBuilder
-    private func deadlineRow(_ deadline: WidgetDeadlineEntry) -> some View {
+    private func deadlineRow(_ deadline: WidgetDeadlineEntry, compact: Bool, multiLineTitle: Bool) -> some View {
         let tint = tint(for: deadline.difficulty)
 
         HStack(spacing: 10) {
             Circle()
                 .fill(tint)
-                .frame(width: 10, height: 10)
+                .frame(width: compact ? 9 : 10, height: compact ? 9 : 10)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(deadline.title)
-                    .font(WidgetFont.schoolbell(size: 17))
+                    .font(WidgetFont.schoolbell(size: compact ? 15 : 17))
                     .foregroundStyle(Color.black.opacity(0.86))
-                    .lineLimit(1)
+                    .lineLimit(multiLineTitle ? 2 : 1)
+                    .minimumScaleFactor(0.8)
 
                 Text(deadlineMeta(for: deadline))
-                    .font(WidgetFont.schoolbell(size: 12))
+                    .font(WidgetFont.schoolbell(size: compact ? 11 : 12))
                     .foregroundStyle(tint)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
 
             Spacer(minLength: 8)
 
             Text(shortDate(for: deadline.deadlineDate))
-                .font(WidgetFont.schoolbell(size: 14))
+                .font(WidgetFont.schoolbell(size: compact ? 12 : 14))
                 .foregroundStyle(Color.black.opacity(0.58))
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, compact ? 10 : 12)
+        .padding(.vertical, compact ? 8 : 10)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color.white.opacity(0.58))
