@@ -1,0 +1,46 @@
+{
+  "identifier" : "36A170BE",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "E0F8C51F",
+      "localizations" : [
+        {
+          "description" : "Desbloqueia o histórico ilimitado do Antikaos.",
+          "displayName" : "Histórico ilimitado",
+          "locale" : "pt_BR"
+        },
+        {
+          "description" : "Unlocks unlimited history in Antikaos.",
+          "displayName" : "Unlimited history",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "br.com.antonio.Antikaos.unlimitedHistory",
+      "referenceName" : "Unlimited History",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "1F0D92D7",
+    "_developerTeamID" : "LOCALTEAM",
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 769093200,
+    "_locale" : "pt_BR",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "BRA",
+    "_timeRate" : 0
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}
