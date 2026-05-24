@@ -185,7 +185,9 @@ struct TaskManager {
     private func saveContext() {
         do {
             try modelContext.save()
-            NotificationManager.sync(tasks: fetchTasks(), generatedTasks: fetchGeneratedTasks())
+            let currentTasks = fetchTasks()
+            NotificationManager.sync(tasks: currentTasks, generatedTasks: fetchGeneratedTasks())
+            WidgetSyncManager.syncChaos(from: currentTasks)
         } catch {
             assertionFailure("Failed to save context: \(error)")
         }

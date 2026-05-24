@@ -89,6 +89,7 @@ struct ContentView: View {
             onboardingName = userName
             createAvailableHoursModelIfNeeded()
             NotificationManager.requestAuthorizationIfNeeded()
+            WidgetSyncManager.syncChaos(from: tasks)
         }
     }
 

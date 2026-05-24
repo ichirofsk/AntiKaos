@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A10000012FC0000000C7D230 /* AntikaosWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A10000042FC0000000C7D230 /* AntikaosWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		7C05FE922FB7E26200C7D230 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,12 +25,34 @@
 			remoteGlobalIDString = 7C05FE812FB7E26000C7D230;
 			remoteInfo = Antikaos;
 		};
+		A10000092FC0000000C7D230 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7C05FE7A2FB7E26000C7D230 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000052FC0000000C7D230;
+			remoteInfo = AntikaosWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A10000022FC0000000C7D230 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A10000012FC0000000C7D230 /* AntikaosWidgetExtension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		7C05FE822FB7E26000C7D230 /* Antikaos.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Antikaos.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7C05FE912FB7E26200C7D230 /* AntikaosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AntikaosTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7C05FE9B2FB7E26200C7D230 /* AntikaosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AntikaosUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000042FC0000000C7D230 /* AntikaosWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AntikaosWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -55,10 +81,22 @@
 			path = AntikaosUITests;
 			sourceTree = "<group>";
 		};
+		A10000032FC0000000C7D230 /* AntikaosWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = AntikaosWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		7C05FE7F2FB7E26000C7D230 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000062FC0000000C7D230 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -88,6 +126,7 @@
 				7C0504AD2FBE76B900C7D230 /* Licenses */,
 				7C0504A82FBE769D00C7D230 /* Utilities */,
 				7C05FE842FB7E26000C7D230 /* Antikaos */,
+				A10000032FC0000000C7D230 /* AntikaosWidget */,
 				7C05FE942FB7E26200C7D230 /* AntikaosTests */,
 				7C05FE9E2FB7E26200C7D230 /* AntikaosUITests */,
 				7C05FE832FB7E26000C7D230 /* Products */,
@@ -98,6 +137,7 @@
 			isa = PBXGroup;
 			children = (
 				7C05FE822FB7E26000C7D230 /* Antikaos.app */,
+				A10000042FC0000000C7D230 /* AntikaosWidgetExtension.appex */,
 				7C05FE912FB7E26200C7D230 /* AntikaosTests.xctest */,
 				7C05FE9B2FB7E26200C7D230 /* AntikaosUITests.xctest */,
 			);
@@ -113,11 +153,13 @@
 			buildPhases = (
 				7C05FE7E2FB7E26000C7D230 /* Sources */,
 				7C05FE7F2FB7E26000C7D230 /* Frameworks */,
+				A10000022FC0000000C7D230 /* Embed App Extensions */,
 				7C05FE802FB7E26000C7D230 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A100000B2FC0000000C7D230 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				7C0504A82FBE769D00C7D230 /* Utilities */,
@@ -130,6 +172,28 @@
 			productName = Antikaos;
 			productReference = 7C05FE822FB7E26000C7D230 /* Antikaos.app */;
 			productType = "com.apple.product-type.application";
+		};
+		A10000052FC0000000C7D230 /* AntikaosWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000102FC0000000C7D230 /* Build configuration list for PBXNativeTarget "AntikaosWidgetExtension" */;
+			buildPhases = (
+				A10000072FC0000000C7D230 /* Sources */,
+				A10000062FC0000000C7D230 /* Frameworks */,
+				A10000082FC0000000C7D230 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A10000032FC0000000C7D230 /* AntikaosWidget */,
+			);
+			name = AntikaosWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = AntikaosWidgetExtension;
+			productReference = A10000042FC0000000C7D230 /* AntikaosWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 		7C05FE902FB7E26200C7D230 /* AntikaosTests */ = {
 			isa = PBXNativeTarget;
@@ -190,6 +254,9 @@
 					7C05FE812FB7E26000C7D230 = {
 						CreatedOnToolsVersion = 26.5;
 					};
+					A10000052FC0000000C7D230 = {
+						CreatedOnToolsVersion = 26.5;
+					};
 					7C05FE902FB7E26200C7D230 = {
 						CreatedOnToolsVersion = 26.5;
 						TestTargetID = 7C05FE812FB7E26000C7D230;
@@ -215,6 +282,7 @@
 			projectRoot = "";
 			targets = (
 				7C05FE812FB7E26000C7D230 /* Antikaos */,
+				A10000052FC0000000C7D230 /* AntikaosWidgetExtension */,
 				7C05FE902FB7E26200C7D230 /* AntikaosTests */,
 				7C05FE9A2FB7E26200C7D230 /* AntikaosUITests */,
 			);
@@ -223,6 +291,13 @@
 
 /* Begin PBXResourcesBuildPhase section */
 		7C05FE802FB7E26000C7D230 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000082FC0000000C7D230 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -247,6 +322,13 @@
 
 /* Begin PBXSourcesBuildPhase section */
 		7C05FE7E2FB7E26000C7D230 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000072FC0000000C7D230 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -279,6 +361,11 @@
 			isa = PBXTargetDependency;
 			target = 7C05FE812FB7E26000C7D230 /* Antikaos */;
 			targetProxy = 7C05FE9C2FB7E26200C7D230 /* PBXContainerItemProxy */;
+		};
+		A100000B2FC0000000C7D230 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000052FC0000000C7D230 /* AntikaosWidgetExtension */;
+			targetProxy = A10000092FC0000000C7D230 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -410,6 +497,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_ENTITLEMENTS = Antikaos/Antikaos.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 639W8777DZ;
@@ -449,6 +537,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Antikaos/Antikaos.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 639W8777DZ;
@@ -477,6 +566,70 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		A100000C2FC0000000C7D230 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = AntikaosWidget/AntikaosWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 639W8777DZ;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Caos Widget";
+				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = com.apple.widgetkit-extension;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = br.com.antonio.Antikaos.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A100000D2FC0000000C7D230 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = AntikaosWidget/AntikaosWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 639W8777DZ;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Caos Widget";
+				INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier = com.apple.widgetkit-extension;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = br.com.antonio.Antikaos.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -584,6 +737,15 @@
 			buildConfigurations = (
 				7C05FEA62FB7E26200C7D230 /* Debug */,
 				7C05FEA72FB7E26200C7D230 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A10000102FC0000000C7D230 /* Build configuration list for PBXNativeTarget "AntikaosWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A100000C2FC0000000C7D230 /* Debug */,
+				A100000D2FC0000000C7D230 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
