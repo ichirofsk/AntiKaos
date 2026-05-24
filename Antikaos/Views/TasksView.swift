@@ -66,6 +66,7 @@ struct TasksView: View {
                         summaryCard(isCompact: isCompact, isVeryCompact: isVeryCompact)
                         filterRow(isCompact: isCompact, isVeryCompact: isVeryCompact)
                         tasksSection(isCompact: isCompact, isVeryCompact: isVeryCompact)
+                        analyticsEntryCard(isCompact: isCompact, isVeryCompact: isVeryCompact)
                     }
                     .padding(.horizontal, isVeryCompact ? 14 : (isCompact ? 16 : 20))
                     .padding(.top, isVeryCompact ? 12 : (isCompact ? 14 : 18))
@@ -320,6 +321,59 @@ struct TasksView: View {
                 }
             }
         }
+    }
+
+    private func analyticsEntryCard(isCompact: Bool, isVeryCompact: Bool) -> some View {
+        NavigationLink {
+            PerformanceAnalyticsView()
+        } label: {
+            HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Text("Análise do desempenho")
+                            .font(AppTheme.schoolbell(isVeryCompact ? 18 : (isCompact ? 20 : 22)))
+                            .foregroundStyle(AppTheme.primaryText)
+
+                        Text("Premium")
+                            .font(AppTheme.schoolbell(isVeryCompact ? 10 : 12))
+                            .foregroundStyle(AppTheme.primaryChaos)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule()
+                                    .fill(AppTheme.primaryChaos.opacity(0.12))
+                            )
+                    }
+
+                    Text("Veja gráficos de evolução, consistência e impacto do caos numa tela dedicada.")
+                        .font(AppTheme.schoolbell(isVeryCompact ? 13 : 15))
+                        .foregroundStyle(AppTheme.secondaryText)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer(minLength: 10)
+
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: isVeryCompact ? 24 : 28, weight: .semibold))
+                    .foregroundStyle(AppTheme.primaryChaos)
+                    .frame(width: isVeryCompact ? 44 : 52, height: isVeryCompact ? 44 : 52)
+                    .background(
+                        Circle()
+                            .fill(Color.white.opacity(0.72))
+                    )
+            }
+            .padding(isVeryCompact ? 14 : 16)
+            .background(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .stroke(AppTheme.primaryChaos.opacity(0.18), lineWidth: 1)
+                    )
+            )
+            .shadow(color: AppTheme.primaryChaos.opacity(0.08), radius: 10, x: 0, y: 5)
+        }
+        .buttonStyle(.plain)
     }
 
     private func deadlineCard(_ task: TaskItem, isCompact: Bool, isVeryCompact: Bool) -> some View {
