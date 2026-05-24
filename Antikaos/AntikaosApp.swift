@@ -11,6 +11,8 @@ import UIKit
 
 @main
 struct AntikaosApp: App {
+    @StateObject private var premiumAccessManager = PremiumAccessManager()
+
     init() {
         FontLoader.loadCustomFonts(["Schoolbell-Regular.ttf"])
         clearLegacyAppStateIfNeeded()
@@ -39,6 +41,7 @@ struct AntikaosApp: App {
         WindowGroup {
             ContentView()
                 .preferredColorScheme(.light)
+                .environmentObject(premiumAccessManager)
         }
         .modelContainer(sharedModelContainer)
     }

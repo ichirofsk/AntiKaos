@@ -1,8 +1,10 @@
 import SwiftUI
 import SwiftData
+import StoreKit
 
 struct ProfileView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var premiumAccessManager: PremiumAccessManager
     @AppStorage("profile.userName") private var userName = ""
     @Query(sort: \TaskItem.updatedAt, order: .reverse) private var tasks: [TaskItem]
     @Query(sort: \HistoryEntry.date, order: .reverse) private var historyEntries: [HistoryEntry]
@@ -12,6 +14,7 @@ struct ProfileView: View {
     @State private var isHistoryExpanded = false
     @State private var draftUserName = ""
     @State private var isShowingChaosInfo = false
+    @State private var isShowingHistoryPaywall = false
 
     private var completedTasksCount: Int {
         historyEntries.filter { $0.type == .taskCompleted }.count
@@ -96,6 +99,11 @@ struct ProfileView: View {
         .onAppear {
             createAvailableHoursModelIfNeeded()
             resetDraftUserName()
+        }
+        .sheet(isPresented: $isShowingHistoryPaywall) {
+            UnlimitedHistoryPaywallView()
+                .environmentObject(premiumAccessManager)
+                .presentationDetents([.medium, .large])
         }
     }
 
@@ -366,14 +374,22 @@ struct ProfileView: View {
 
                 if historyEntries.count > 3 {
                     Button {
-                        withAnimation(.snappy(duration: 0.24)) {
-                            isHistoryExpanded.toggle()
+                        if premiumAccessManager.hasUnlimitedHistory {
+                            withAnimation(.snappy(duration: 0.24)) {
+                                isHistoryExpanded.toggle()
+                            }
+                        } else {
+                            isShowingHistoryPaywall = true
                         }
                     } label: {
                         HStack(spacing: 6) {
-                            Text(isHistoryExpanded ? "Ver menos" : "Ver mais")
+                            Text(
+                                premiumAccessManager.hasUnlimitedHistory
+                                ? (isHistoryExpanded ? "Ver menos" : "Ver mais")
+                                : "Ver mais"
+                            )
                                 .font(AppTheme.schoolbell(isVeryCompact ? 16 : 18))
-                            Image(systemName: isHistoryExpanded ? "chevron.up" : "chevron.down")
+                            Image(systemName: premiumAccessManager.hasUnlimitedHistory && isHistoryExpanded ? "chevron.up" : "chevron.down")
                                 .font(.system(size: 14, weight: .semibold))
                         }
                         .foregroundStyle(AppTheme.primaryChaos)
@@ -388,7 +404,9 @@ struct ProfileView: View {
                     .foregroundStyle(AppTheme.secondaryText)
             } else {
                 VStack(spacing: 0) {
-                    let visibleEntries = isHistoryExpanded ? historyEntries : Array(historyEntries.prefix(3))
+                    let visibleEntries = (premiumAccessManager.hasUnlimitedHistory && isHistoryExpanded)
+                        ? historyEntries
+                        : Array(historyEntries.prefix(3))
 
                     ForEach(Array(visibleEntries.enumerated()), id: \.element.id) { index, entry in
                         HStack(alignment: .top, spacing: 12) {
@@ -478,6 +496,95 @@ struct ProfileView: View {
 
         withAnimation(.snappy(duration: 0.22)) {
             isEditingUserName = false
+        }
+    }
+}
+
+private struct UnlimitedHistoryPaywallView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var premiumAccessManager: PremiumAccessManager
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Histórico ilimitado")
+                        .font(AppTheme.schoolbell(30))
+                        .foregroundStyle(AppTheme.primaryText)
+
+                    Text("Veja todo o seu histórico e acompanhe sua evolução sem limite. Ideal para a proposta 1 Dollar App: uma compra única simples.")
+                        .font(AppTheme.schoolbell(18))
+                        .foregroundStyle(AppTheme.secondaryText)
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    benefitRow("Acesse todos os registros antigos")
+                    benefitRow("Acompanhe sua consistência ao longo do tempo")
+                    benefitRow("Desbloqueio permanente por compra única")
+                }
+                .padding(18)
+                .background(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(Color.white.opacity(0.82))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                .stroke(AppTheme.primaryChaos.opacity(0.16), lineWidth: 1)
+                        )
+                )
+
+                ProductView(id: PremiumAccessManager.unlimitedHistoryProductID)
+                    .productViewStyle(.large)
+                    .padding(18)
+                    .background(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                    .stroke(AppTheme.primaryChaos.opacity(0.18), lineWidth: 1)
+                            )
+                    )
+
+                Button {
+                    Task {
+                        await premiumAccessManager.restorePurchases()
+                    }
+                } label: {
+                    Text("Restaurar compra")
+                        .font(AppTheme.schoolbell(18))
+                        .foregroundStyle(AppTheme.primaryChaos)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .stroke(AppTheme.primaryChaos.opacity(0.3), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background.ignoresSafeArea())
+        .presentationDragIndicator(.visible)
+        .onAppear {
+            Task {
+                await premiumAccessManager.refreshEntitlements()
+            }
+        }
+        .onChange(of: premiumAccessManager.hasUnlimitedHistory) { _, isUnlocked in
+            if isUnlocked {
+                dismiss()
+            }
+        }
+    }
+
+    private func benefitRow(_ text: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(AppTheme.primaryChaos)
+
+            Text(text)
+                .font(AppTheme.schoolbell(16))
+                .foregroundStyle(AppTheme.primaryText)
         }
     }
 }
