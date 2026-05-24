@@ -7,6 +7,16 @@ enum WidgetShared {
     static let chaosValueKey = "widget.chaosValue"
 }
 
+private enum WidgetFont {
+    static func schoolbell(size: CGFloat) -> Font {
+        .custom("Schoolbell", size: size)
+    }
+
+    static func schoolbellOrRounded(size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        .custom("Schoolbell", size: size, relativeTo: .body)
+    }
+}
+
 struct AntikaosWidgetEntry: TimelineEntry {
     let date: Date
     let chaosValue: Int
@@ -98,18 +108,18 @@ struct AntikaosChaosWidgetView: View {
 
                 VStack(spacing: 3) {
                     Text("\(entry.chaosValue)")
-                        .font(.system(size: 34, weight: .regular, design: .rounded))
+                        .font(WidgetFont.schoolbell(size: 34))
                         .foregroundStyle(Color.black.opacity(0.88))
 
                     Text("/100")
-                        .font(.system(size: 16, weight: .regular, design: .rounded))
+                        .font(WidgetFont.schoolbell(size: 16))
                         .foregroundStyle(Color.black.opacity(0.55))
                 }
             }
             .frame(width: 112, height: 112)
 
             Text(level.title)
-                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .font(WidgetFont.schoolbell(size: 15))
                 .foregroundStyle(level.tint)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
