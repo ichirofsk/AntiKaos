@@ -324,6 +324,7 @@ struct TasksView: View {
 
     private func deadlineCard(_ task: TaskItem, isCompact: Bool, isVeryCompact: Bool) -> some View {
         let tone = tone(for: task)
+        let textTone = readableTone(for: task)
         let progress = min(max(task.progress, 0), 1)
         let sessionsProgressText = "\(task.completedSessions)/\(max(task.tasksQuantity, 1))"
         let difficultyValue = "Dificuldade \(task.perceivedDifficulty)"
@@ -337,7 +338,7 @@ struct TasksView: View {
                 deadlineDateColumn(
                     dateLabel: dateLabel,
                     difficultyValue: difficultyValue,
-                    tone: tone,
+                    tone: textTone,
                     isVeryCompact: isVeryCompact
                 )
                 .frame(width: dateWidth)
@@ -353,6 +354,7 @@ struct TasksView: View {
                     progress: progress,
                     sessionsProgressText: sessionsProgressText,
                     tone: tone,
+                    textTone: textTone,
                     isVeryCompact: isVeryCompact
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -400,6 +402,7 @@ struct TasksView: View {
         progress: Double,
         sessionsProgressText: String,
         tone: Color,
+        textTone: Color,
         isVeryCompact: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: isVeryCompact ? 5 : 6) {
@@ -411,7 +414,7 @@ struct TasksView: View {
 
             Text(verbatim: difficultyText)
                 .font(AppTheme.schoolbell(isVeryCompact ? 12 : 14))
-                .foregroundStyle(tone)
+                .foregroundStyle(textTone)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
 
@@ -556,6 +559,19 @@ struct TasksView: View {
             return AppTheme.primaryChaos
         default:
             return AppTheme.critical
+        }
+    }
+
+    private func readableTone(for task: TaskItem) -> Color {
+        switch task.perceivedDifficulty {
+        case 0...30:
+            return Color(red: 0.20, green: 0.40, blue: 0.24)
+        case 31...60:
+            return Color(red: 0.66, green: 0.46, blue: 0.06)
+        case 61...80:
+            return Color(red: 0.67, green: 0.28, blue: 0.10)
+        default:
+            return Color(red: 0.55, green: 0.16, blue: 0.12)
         }
     }
 
