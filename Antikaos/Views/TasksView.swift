@@ -333,7 +333,7 @@ struct TasksView: View {
         let cardHeight = isVeryCompact ? 122.0 : 128.0
         let dateWidth = isVeryCompact ? 86.0 : 92.0
 
-        return HStack(alignment: .center, spacing: isVeryCompact ? 10 : 14) {
+        let cardContent = HStack(alignment: .center, spacing: isVeryCompact ? 10 : 14) {
             HStack(alignment: .center, spacing: isVeryCompact ? 10 : 14) {
                 deadlineDateColumn(
                     dateLabel: dateLabel,
@@ -367,8 +367,12 @@ struct TasksView: View {
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .shadow(color: tone.opacity(0.06), radius: 12, x: 0, y: 5)
         .contentShape(Rectangle())
-        .onTapGesture {
-            editorRoute = .edit(task)
+
+        return SwipeToDeleteDeadlineCard(
+            onDelete: { delete(task) },
+            onTap: { editorRoute = .edit(task) }
+        ) {
+            cardContent
         }
     }
 
@@ -586,6 +590,100 @@ struct TasksView: View {
         default:
             return "Crítica"
         }
+    }
+
+    private func delete(_ task: TaskItem) {
+        withAnimation(.snappy) {
+            modelContext.delete(task)
+            try? modelContext.save()
+        }
+    }
+}
+
+private struct SwipeToDeleteDeadlineCard<Content: View>: View {
+    let onDelete: () -> Void
+    let onTap: () -> Void
+    @ViewBuilder let content: Content
+
+    @State private var horizontalOffset: CGFloat = 0
+    @State private var isOpen = false
+    @State private var isDraggingHorizontally = false
+
+    private let revealWidth: CGFloat = 108
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            HStack {
+                Spacer()
+
+                Button(role: .destructive) {
+                    withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
+                        horizontalOffset = 0
+                        isOpen = false
+                    }
+                    onDelete()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Apagar")
+                            .font(AppTheme.schoolbell(15))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(width: revealWidth, height: 52)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(AppTheme.critical)
+                    )
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 8)
+                .offset(x: min(0, revealWidth + horizontalOffset))
+                .opacity(max(0, min(1, -horizontalOffset / revealWidth)))
+            }
+
+            content
+                .offset(x: horizontalOffset)
+                .onTapGesture {
+                    if isOpen {
+                        withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
+                            isOpen = false
+                            horizontalOffset = 0
+                        }
+                    } else {
+                        onTap()
+                    }
+                }
+        }
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 4, coordinateSpace: .local)
+                .onChanged { value in
+                    let horizontal = value.translation.width
+                    let vertical = value.translation.height
+
+                    guard abs(horizontal) > abs(vertical) else { return }
+                    isDraggingHorizontally = true
+
+                    if horizontal < 0 {
+                        horizontalOffset = max(-revealWidth, horizontal)
+                    } else if isOpen {
+                        horizontalOffset = min(0, -revealWidth + horizontal)
+                    }
+                }
+                .onEnded { value in
+                    defer { isDraggingHorizontally = false }
+
+                    guard isDraggingHorizontally else { return }
+
+                    let shouldOpen = value.translation.width < -(revealWidth * 0.28) || (isOpen && value.translation.width < revealWidth * 0.2)
+
+                    withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
+                        isOpen = shouldOpen
+                        horizontalOffset = shouldOpen ? -revealWidth : 0
+                    }
+                }
+        )
     }
 }
 
