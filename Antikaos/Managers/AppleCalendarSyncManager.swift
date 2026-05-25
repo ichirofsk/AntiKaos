@@ -101,7 +101,7 @@ final class AppleCalendarSyncManager {
                 .filter { $0.calendarIdentifier != antikaosCalendarID }
             let predicate = store.predicateForEvents(withStart: startDate, end: endDate, calendars: calendars)
 
-            return store.events(matching: predicate)
+            let events = store.events(matching: predicate)
                 .filter { $0.isAllDay || $0.calendar.title.localizedCaseInsensitiveContains("feriado") || $0.calendar.title.localizedCaseInsensitiveContains("holiday") }
                 .map {
                     AppleCalendarExternalEvent(
@@ -111,9 +111,43 @@ final class AppleCalendarSyncManager {
                         isAllDay: $0.isAllDay
                     )
                 }
+
+            return deduplicatedExternalEvents(events)
+                .sorted {
+                    if $0.date != $1.date {
+                        return $0.date < $1.date
+                    }
+
+                    return $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+                }
         } catch {
             return []
         }
+    }
+
+    private func deduplicatedExternalEvents(_ events: [AppleCalendarExternalEvent]) -> [AppleCalendarExternalEvent] {
+        var seenKeys: Set<String> = []
+        var uniqueEvents: [AppleCalendarExternalEvent] = []
+
+        for event in events {
+            let key = externalEventKey(for: event)
+            guard !seenKeys.contains(key) else { continue }
+
+            seenKeys.insert(key)
+            uniqueEvents.append(event)
+        }
+
+        return uniqueEvents
+    }
+
+    private func externalEventKey(for event: AppleCalendarExternalEvent) -> String {
+        let day = Calendar.current.startOfDay(for: event.date).timeIntervalSinceReferenceDate
+        let normalizedTitle = event.title
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+
+        return "\(Int(day))-\(normalizedTitle)"
     }
 
     private func upsertDeadlineEvent(for task: TaskItem, in calendar: EKCalendar) throws {

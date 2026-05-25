@@ -184,9 +184,20 @@ struct CalendarView: View {
                                 .font(AppTheme.schoolbell(18))
                                 .foregroundStyle(isSelected(date) ? Color.white : AppTheme.primaryText)
 
-                            Circle()
-                                .fill(hasTask(on: date) ? (isSelected(date) ? Color.white.opacity(0.82) : AppTheme.primaryChaos.opacity(0.74)) : Color.clear)
-                                .frame(width: 6, height: 6)
+                            HStack(spacing: 4) {
+                                if hasTask(on: date) {
+                                    Circle()
+                                        .fill(isSelected(date) ? Color.white.opacity(0.82) : AppTheme.primaryChaos.opacity(0.82))
+                                        .frame(width: 6, height: 6)
+                                }
+
+                                if hasExternalEvent(on: date) {
+                                    Circle()
+                                        .fill(isSelected(date) ? Color.white.opacity(0.82) : Color(red: 0.95, green: 0.76, blue: 0.22))
+                                        .frame(width: 6, height: 6)
+                                }
+                            }
+                            .frame(height: 6)
                         }
                         .frame(maxWidth: .infinity, minHeight: 52)
                         .background(backgroundColor(for: date), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -261,7 +272,10 @@ struct CalendarView: View {
     private func hasTask(on date: Date) -> Bool {
         activeTasks.contains { calendar.isDate($0.deadlineDate, inSameDayAs: date) }
             || generatedTasks.contains { calendar.isDate($0.scheduledDate, inSameDayAs: date) }
-            || externalEvents.contains { calendar.isDate($0.date, inSameDayAs: date) }
+    }
+
+    private func hasExternalEvent(on date: Date) -> Bool {
+        externalEvents.contains { calendar.isDate($0.date, inSameDayAs: date) }
     }
 
     private func backgroundColor(for date: Date) -> Color {
