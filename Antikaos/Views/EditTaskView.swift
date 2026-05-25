@@ -204,7 +204,6 @@ struct EditTaskView: View {
                     .disabled(!canSave)
                 }
             }
-            .dismissKeyboardOnTap()
         }
     }
 
@@ -287,7 +286,7 @@ struct EditTaskView: View {
                 VStack(spacing: 16) {
                     DatePicker(
                         AppStrings.localized("task.field.deadline"),
-                        selection: $draftDeadlineDate,
+                        selection: deadlineDateBinding,
                         displayedComponents: [.date]
                     )
                     .datePickerStyle(.graphical)
@@ -298,7 +297,7 @@ struct EditTaskView: View {
 
                     DatePicker(
                         AppStrings.localized("task.field.deadlineTime"),
-                        selection: $draftDeadlineDate,
+                        selection: deadlineDateBinding,
                         displayedComponents: [.hourAndMinute]
                     )
                     .datePickerStyle(.compact)
@@ -331,8 +330,6 @@ struct EditTaskView: View {
         Group {
             if isEditingDeadlineDate {
                 Button {
-                    applyDraftDeadlineDate()
-
                     withAnimation(.snappy(duration: 0.22)) {
                         isEditingDeadlineDate = false
                     }
@@ -358,7 +355,6 @@ struct EditTaskView: View {
         Button {
             withAnimation(.snappy(duration: 0.22)) {
                 if isEditingDeadlineDate {
-                    draftDeadlineDate = deadlineDate
                     isEditingDeadlineDate = false
                 } else {
                     draftDeadlineDate = deadlineDate
@@ -387,6 +383,18 @@ struct EditTaskView: View {
         deadlineDate = draftDeadlineDate
         totalSessions = min(totalSessions, maxPunctualSessions)
         completedSessions = min(completedSessions, totalSessions)
+    }
+
+    private var deadlineDateBinding: Binding<Date> {
+        Binding(
+            get: { deadlineDate },
+            set: { newDate in
+                deadlineDate = newDate
+                draftDeadlineDate = newDate
+                totalSessions = min(totalSessions, maxPunctualSessions)
+                completedSessions = min(completedSessions, totalSessions)
+            }
+        )
     }
 
     private var notesSection: some View {
