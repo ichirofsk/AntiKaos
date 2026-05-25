@@ -10,6 +10,7 @@ final class GeneratedTaskItem {
     var scheduledDate: Date
     var createdAt: Date
     var isCompleted: Bool
+    var appleReminderIdentifier: String?
 
     init(
         id: UUID = UUID(),
@@ -18,7 +19,8 @@ final class GeneratedTaskItem {
         dedicationMinutes: Int = 0,
         scheduledDate: Date,
         createdAt: Date = .now,
-        isCompleted: Bool = false
+        isCompleted: Bool = false,
+        appleReminderIdentifier: String? = nil
     ) {
         self.id = id
         self.parentTaskID = parentTaskID
@@ -27,5 +29,6 @@ final class GeneratedTaskItem {
         self.scheduledDate = scheduledDate
         self.createdAt = createdAt
         self.isCompleted = isCompleted
+        self.appleReminderIdentifier = appleReminderIdentifier
     }
 }

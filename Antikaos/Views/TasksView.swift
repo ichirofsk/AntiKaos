@@ -666,8 +666,7 @@ struct TasksView: View {
 
     private func delete(_ task: TaskItem) {
         withAnimation(.snappy) {
-            modelContext.delete(task)
-            try? modelContext.save()
+            TaskManager(modelContext: modelContext).deleteTask(task)
         }
     }
 }

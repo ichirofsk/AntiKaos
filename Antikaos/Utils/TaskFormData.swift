@@ -10,6 +10,7 @@ struct TaskFormData {
     let dedicationMinutes: Int
     let deadlineDate: Date
     let notes: String
+    let shouldSyncWithApple: Bool
 
     init(
         title: String,
@@ -20,7 +21,8 @@ struct TaskFormData {
         completedSessions: Int,
         dedicationMinutes: Int,
         deadlineDate: Date,
-        notes: String
+        notes: String,
+        shouldSyncWithApple: Bool = false
     ) {
         self.title = title
         self.perceivedDifficulty = perceivedDifficulty
@@ -31,6 +33,7 @@ struct TaskFormData {
         self.dedicationMinutes = dedicationMinutes
         self.deadlineDate = deadlineDate
         self.notes = notes
+        self.shouldSyncWithApple = shouldSyncWithApple
     }
 
     var trimmedTitle: String {

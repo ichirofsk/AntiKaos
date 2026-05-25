@@ -84,6 +84,8 @@ final class TaskItem {
     var updatedAt: Date
     var isCompleted: Bool
     var notes: String?
+    var isAppleSyncEnabled: Bool = false
+    var appleCalendarEventIdentifier: String?
 
     init(
         id: UUID = UUID(),
@@ -98,7 +100,9 @@ final class TaskItem {
         createdAt: Date = .now,
         updatedAt: Date = .now,
         isCompleted: Bool = false,
-        notes: String? = nil
+        notes: String? = nil,
+        isAppleSyncEnabled: Bool = false,
+        appleCalendarEventIdentifier: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -114,6 +118,8 @@ final class TaskItem {
         self.updatedAt = updatedAt
         self.isCompleted = isCompleted || completedSessions >= totalSessions
         self.notes = notes
+        self.isAppleSyncEnabled = isAppleSyncEnabled
+        self.appleCalendarEventIdentifier = appleCalendarEventIdentifier
     }
 }
 

@@ -9,6 +9,7 @@ struct CalendarView: View {
 
     @State private var displayedMonth: Date = .now
     @State private var selectedDate: Date = .now
+    @State private var externalEvents: [AppleCalendarExternalEvent] = []
 
     private let calendar = Calendar.current
 
@@ -70,7 +71,21 @@ struct CalendarView: View {
                 )
             }
 
-        return (deadlineEntries + generatedEntries)
+        let externalEntries = externalEvents
+            .filter { calendar.isDate($0.date, inSameDayAs: selectedDate) }
+            .map {
+                CalendarPlanEntry(
+                    id: "external-\($0.id)",
+                    title: $0.title,
+                    date: $0.date,
+                    dedicationMinutes: nil,
+                    chaosScore: nil,
+                    tint: AppTheme.secondaryText,
+                    symbolName: "calendar.badge.clock"
+                )
+            }
+
+        return (deadlineEntries + generatedEntries + externalEntries)
             .sorted {
                 if $0.date != $1.date {
                     return $0.date < $1.date
@@ -99,6 +114,11 @@ struct CalendarView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             TaskManager(modelContext: modelContext).rebalanceGeneratedTasks()
+            TaskManager(modelContext: modelContext).syncAppleReminderCompletions()
+            loadExternalEvents()
+        }
+        .onChange(of: displayedMonth) {
+            loadExternalEvents()
         }
     }
 
@@ -202,7 +222,7 @@ struct CalendarView: View {
                                         .font(AppTheme.schoolbell(16))
                                         .foregroundStyle(entry.tint)
                                 } else {
-                                    Image(systemName: "checkmark")
+                                    Image(systemName: entry.symbolName)
                                         .font(.system(size: 14, weight: .semibold))
                                         .foregroundStyle(entry.tint)
                                 }
@@ -241,6 +261,7 @@ struct CalendarView: View {
     private func hasTask(on date: Date) -> Bool {
         activeTasks.contains { calendar.isDate($0.deadlineDate, inSameDayAs: date) }
             || generatedTasks.contains { calendar.isDate($0.scheduledDate, inSameDayAs: date) }
+            || externalEvents.contains { calendar.isDate($0.date, inSameDayAs: date) }
     }
 
     private func backgroundColor(for date: Date) -> Color {
@@ -262,6 +283,15 @@ struct CalendarView: View {
         let shift = max(calendar.firstWeekday - 1, 0)
         return Array(symbols[shift...]) + Array(symbols[..<shift])
     }
+
+    private func loadExternalEvents() {
+        guard let interval = calendar.dateInterval(of: .month, for: displayedMonth) else { return }
+
+        Task {
+            let events = await AppleCalendarSyncManager.shared.externalEvents(from: interval.start, to: interval.end)
+            externalEvents = events
+        }
+    }
 }
 
 private struct CalendarDay: Identifiable {
@@ -277,6 +307,7 @@ private struct CalendarPlanEntry: Identifiable {
     let dedicationMinutes: Int?
     let chaosScore: Int?
     let tint: Color
+    var symbolName: String = "checkmark"
 }
 
 #Preview {

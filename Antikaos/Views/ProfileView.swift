@@ -185,12 +185,12 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Visão geral")
+                    Text("Feedback semanal")
                         .font(AppTheme.schoolbell(isVeryCompact ? 22 : 24))
                         .foregroundStyle(AppTheme.primaryChaos)
 
                     HStack(spacing: 8) {
-                        Text("Caos médio da semana")
+                        Text("Caos da semana")
                             .font(AppTheme.schoolbell(isVeryCompact ? 16 : 18))
                             .foregroundStyle(AppTheme.primaryText)
                             .lineLimit(1)
@@ -325,7 +325,7 @@ struct ProfileView: View {
 
     private var chaosInfoBubble: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("O caos combina dificuldade, prazo e progresso das suas tarefas.")
+            Text("Cálculo da média dos valores do Caos na semana")
                 .font(AppTheme.schoolbell(15))
                 .foregroundStyle(AppTheme.primaryText)
 
@@ -734,13 +734,6 @@ struct AvailableHoursCard: View {
             }
 
             Spacer()
-
-            Text("70h disponíveis")
-                .font(AppTheme.schoolbell(isVeryCompact ? 14 : (isCompact ? 15 : 17)))
-                .foregroundStyle(AppTheme.secondaryText)
-                .multilineTextAlignment(.trailing)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)

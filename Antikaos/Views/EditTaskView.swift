@@ -19,6 +19,7 @@ struct EditTaskView: View {
     @State private var notes: String
     @State private var draftNotes: String
     @State private var isEditingNotes = false
+    @State private var shouldSyncWithApple: Bool
     @FocusState private var focusedNumericField: NumericField?
 
     init(task: TaskItem? = nil, onSave: @escaping (TaskFormData) -> Void) {
@@ -37,6 +38,7 @@ struct EditTaskView: View {
         _draftDeadlineDate = State(initialValue: initialDeadlineDate)
         _notes = State(initialValue: initialNotes)
         _draftNotes = State(initialValue: initialNotes)
+        _shouldSyncWithApple = State(initialValue: task?.isAppleSyncEnabled ?? false)
     }
 
     private var viewTitle: String {
@@ -168,6 +170,10 @@ struct EditTaskView: View {
 
                         inputCard {
                             notesSection
+                        }
+
+                        inputCard {
+                            appleSyncSection
                         }
                     }
                     .padding(.horizontal, 20)
@@ -546,7 +552,8 @@ struct EditTaskView: View {
             completedSessions: deadlineKind == .continuous ? 0 : normalizedCompletedSessions,
             dedicationMinutes: deadlineKind == .continuous ? 0 : dedicationMinutes,
             deadlineDate: normalizedDeadlineDate,
-            notes: notes
+            notes: notes,
+            shouldSyncWithApple: shouldSyncWithApple
         )
 
         onSave(formData)
@@ -576,6 +583,23 @@ struct EditTaskView: View {
     private var notesDisplay: String {
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedNotes.isEmpty ? AppStrings.localized("task.field.notes.empty") : notes
+    }
+
+    private var appleSyncSection: some View {
+        Toggle(isOn: $shouldSyncWithApple) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Adicionar ao Calendário Apple")
+                    .font(AppTheme.schoolbell(18))
+                    .foregroundStyle(AppTheme.primaryText)
+
+                Text("A deadline entra no calendário Antikaos, e as atividades entram como to-dos nos Lembretes.")
+                    .font(AppTheme.schoolbell(14))
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .toggleStyle(.switch)
+        .tint(AppTheme.primaryChaos)
     }
 }
 

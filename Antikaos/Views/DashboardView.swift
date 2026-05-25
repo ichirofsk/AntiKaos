@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import Combine
+import UIKit
 
 struct DashboardView: View {
     @AppStorage("profile.userName") private var userName = ""
@@ -178,6 +179,9 @@ struct DashboardView: View {
         .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { date in
             currentDate = date
         }
+        .onAppear {
+            TaskManager(modelContext: modelContext).syncAppleReminderCompletions()
+        }
     }
 
     private func header(isVeryCompact: Bool) -> some View {
@@ -251,15 +255,12 @@ struct DashboardView: View {
                     .buttonStyle(.plain)
                 }
 
-                Text("O caos junta dificuldade, tempo restante e progresso das suas sessões para mostrar como sua rotina está agora.")
-                    .font(AppTheme.schoolbell(18))
-                    .foregroundStyle(AppTheme.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text("Quanto maior o valor, mais apertada está a organização da tarefa.")
-                    .font(AppTheme.schoolbell(16))
-                    .foregroundStyle(AppTheme.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
+                JustifiedText(
+                    text: "A métrica Caos relaciona a quantidade de deadlines, o tempo restante para a finalização de cada deadline, o progresso e a dificuldade percebida em cada uma, a fim de ajudar o usuário a se localizar quanto a suas entregas, da melhor forma possível.\n\nMantenha-se em dia para não deixar o Caos tomar conta!",
+                    fontSize: 16,
+                    color: UIColor.black.withAlphaComponent(0.64)
+                )
+                .frame(maxWidth: .infinity)
 
                 Button {
                     isShowingChaosInfo = false
@@ -674,6 +675,42 @@ private struct TodoStatusDot: View {
                     isBlinking = !newValue
                 }
             }
+    }
+}
+
+private struct JustifiedText: UIViewRepresentable {
+    let text: String
+    let fontSize: CGFloat
+    let color: UIColor
+
+    func makeUIView(context: Context) -> UILabel {
+        let label = UILabel()
+        label.numberOfLines = 0
+        label.lineBreakMode = .byWordWrapping
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        return label
+    }
+
+    func updateUIView(_ uiView: UILabel, context: Context) {
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .justified
+        paragraphStyle.lineBreakMode = .byWordWrapping
+        paragraphStyle.lineSpacing = 1
+        paragraphStyle.paragraphSpacing = 10
+
+        uiView.attributedText = NSAttributedString(
+            string: text,
+            attributes: [
+                .font: UIFont(name: "Schoolbell", size: fontSize) ?? UIFont.systemFont(ofSize: fontSize),
+                .foregroundColor: color,
+                .paragraphStyle: paragraphStyle
+            ]
+        )
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UILabel, context: Context) -> CGSize? {
+        guard let width = proposal.width else { return nil }
+        return uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
     }
 }
 

@@ -20,7 +20,8 @@ struct TaskManager {
             dedicationMinutes: formData.dedicationMinutes,
             deadlineDate: formData.deadlineDate,
             isCompleted: formData.completedSessions >= formData.totalSessions,
-            notes: formData.normalizedNotes
+            notes: formData.normalizedNotes,
+            isAppleSyncEnabled: formData.shouldSyncWithApple
         )
         task.tasksQuantity = task.deadlineKind == .continuous ? 0 : task.totalSessions
 
@@ -43,6 +44,7 @@ struct TaskManager {
         }
 
         saveContext()
+        syncAppleItemsForEnabledTasks()
     }
 
     func updateTask(_ task: TaskItem, with formData: TaskFormData) {
@@ -58,6 +60,7 @@ struct TaskManager {
         task.dedicationMinutes = max(formData.dedicationMinutes, 0)
         task.deadlineDate = formData.deadlineDate
         task.notes = formData.normalizedNotes
+        task.isAppleSyncEnabled = formData.shouldSyncWithApple
         task.updatedAt = .now
         task.isCompleted = task.completedSessions >= task.totalSessions
         rebuildGeneratedTasks()
@@ -79,6 +82,7 @@ struct TaskManager {
         }
 
         saveContext()
+        syncAppleItemsForEnabledTasks()
     }
 
     func completeSession(for task: TaskItem) {
@@ -131,6 +135,7 @@ struct TaskManager {
         }
 
         generatedTask.isCompleted = false
+        AppleCalendarSyncManager.shared.markReminder(identifier: generatedTask.appleReminderIdentifier, isCompleted: false)
 
         if let parentTask = fetchTasks().first(where: { $0.id == generatedTask.parentTaskID }) {
             parentTask.completedSessions = max(parentTask.completedSessions - 1, 0)
@@ -150,6 +155,7 @@ struct TaskManager {
             relatedTaskTitle: task.title,
             chaosValue: task.chaosScore
         )
+        AppleCalendarSyncManager.shared.removeAppleItems(for: task, generatedTasks: fetchGeneratedTasks())
         modelContext.delete(task)
         rebuildGeneratedTasks()
 
@@ -157,6 +163,7 @@ struct TaskManager {
     }
 
     func deleteTask(_ task: TaskItem) {
+        AppleCalendarSyncManager.shared.removeAppleItems(for: task, generatedTasks: fetchGeneratedTasks())
         modelContext.delete(task)
         rebuildGeneratedTasks()
         saveContext()
@@ -165,6 +172,10 @@ struct TaskManager {
     func rebalanceGeneratedTasks() {
         rebuildGeneratedTasks()
         saveContext()
+    }
+
+    func syncAppleReminderCompletions() {
+        syncReminderCompletionsIfNeeded()
     }
 
     private func addHistory(
@@ -195,6 +206,12 @@ struct TaskManager {
 
     private func rebuildGeneratedTasks() {
         let existingGeneratedTasks = fetchGeneratedTasks()
+        let appleReminderIdentifierByKey = Dictionary(
+            uniqueKeysWithValues: existingGeneratedTasks.compactMap { generatedTask -> (String, String)? in
+                guard let identifier = generatedTask.appleReminderIdentifier else { return nil }
+                return (generatedTaskKey(parentTaskID: generatedTask.parentTaskID, scheduledDate: generatedTask.scheduledDate), identifier)
+            }
+        )
         let completedKeys = Set(
             existingGeneratedTasks
                 .filter(\.isCompleted)
@@ -296,7 +313,8 @@ struct TaskManager {
                         title: AppStrings.generatedTaskTitle(minutes: minutes, deadlineTitle: candidate.task.title),
                         dedicationMinutes: minutes,
                         scheduledDate: candidate.scheduledDate,
-                        isCompleted: isCompleted
+                        isCompleted: isCompleted,
+                        appleReminderIdentifier: appleReminderIdentifierByKey[key]
                     )
                 )
             }
@@ -533,6 +551,7 @@ struct TaskManager {
         }
 
         todayTask.isCompleted = true
+        AppleCalendarSyncManager.shared.markReminder(identifier: todayTask.appleReminderIdentifier, isCompleted: true)
         task.completedSessions = min(task.completedSessions + 1, max(task.tasksQuantity, 1))
         task.updatedAt = .now
         let didCompleteTask = task.tasksQuantity > 0 && task.completedSessions >= task.tasksQuantity
@@ -556,6 +575,27 @@ struct TaskManager {
 
         saveContext()
         return true
+    }
+
+    private func syncAppleItemsForEnabledTasks() {
+        let tasks = fetchTasks()
+        let generatedTasks = fetchGeneratedTasks()
+
+        for task in tasks {
+            Task { @MainActor in
+                await AppleCalendarSyncManager.shared.sync(task: task, generatedTasks: generatedTasks)
+                try? modelContext.save()
+            }
+        }
+    }
+
+    private func syncReminderCompletionsIfNeeded() {
+        let tasks = fetchTasks()
+        let generatedTasks = fetchGeneratedTasks()
+
+        if AppleCalendarSyncManager.shared.syncReminderCompletions(tasks: tasks, generatedTasks: generatedTasks) {
+            try? modelContext.save()
+        }
     }
 
     private func dedicationMinutes(for perceivedDifficulty: Int) -> Int {
