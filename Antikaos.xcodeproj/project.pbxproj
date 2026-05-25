@@ -52,8 +52,8 @@
 		7C05FE822FB7E26000C7D230 /* Antikaos.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Antikaos.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7C05FE912FB7E26200C7D230 /* AntikaosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AntikaosTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7C05FE9B2FB7E26200C7D230 /* AntikaosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AntikaosUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		A1A000012FD0000000C7D230 /* Antikaos.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Antikaos.storekit; sourceTree = "<group>"; };
 		A10000042FC0000000C7D230 /* AntikaosWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AntikaosWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1A000012FD0000000C7D230 /* Antikaos.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Antikaos.storekit; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -512,7 +512,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
-				DEVELOPMENT_TEAM = 639W8777DZ;
+				DEVELOPMENT_TEAM = KX9TR9376W;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Antikaos;
@@ -552,7 +552,7 @@
 				CODE_SIGN_ENTITLEMENTS = Antikaos/Antikaos.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
-				DEVELOPMENT_TEAM = 639W8777DZ;
+				DEVELOPMENT_TEAM = KX9TR9376W;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Antikaos;
@@ -674,7 +674,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = AntikaosWidget/AntikaosWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 639W8777DZ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -708,7 +708,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = AntikaosWidget/AntikaosWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 639W8777DZ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;

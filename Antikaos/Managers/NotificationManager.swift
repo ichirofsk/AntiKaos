@@ -2,8 +2,8 @@ import Foundation
 import UserNotifications
 
 enum NotificationManager {
-    private static let deadlinePrefix = "deadline."
-    private static let generatedTaskPrefix = "generated."
+    nonisolated private static let deadlinePrefix = "deadline."
+    nonisolated private static let generatedTaskPrefix = "generated."
 
     static func requestAuthorizationIfNeeded() {
         let center = UNUserNotificationCenter.current()
@@ -41,14 +41,18 @@ enum NotificationManager {
         }
     }
 
-    private static func deadlineRequest(for task: TaskItem) -> UNNotificationRequest {
+    nonisolated private static func deadlineRequest(for task: TaskItem) -> UNNotificationRequest {
         let content = UNMutableNotificationContent()
         content.title = "Deadline chegando"
         content.body = task.title
         content.sound = .default
 
-        let triggerDate = Calendar.current.date(byAdding: .hour, value: -2, to: task.deadlineDate)
-            .filter { $0 > .now } ?? task.deadlineDate
+        let reminderDate = Calendar.current.date(byAdding: .hour, value: -2, to: task.deadlineDate)
+        let triggerDate = if let reminderDate, reminderDate > .now {
+            reminderDate
+        } else {
+            task.deadlineDate
+        }
 
         let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: triggerDate)
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
@@ -59,7 +63,7 @@ enum NotificationManager {
         )
     }
 
-    private static func generatedTaskRequest(for task: GeneratedTaskItem) -> UNNotificationRequest? {
+    nonisolated private static func generatedTaskRequest(for task: GeneratedTaskItem) -> UNNotificationRequest? {
         guard let triggerDate = Calendar.current.date(byAdding: .minute, value: -15, to: task.scheduledDate),
               triggerDate > .now else {
             return nil
@@ -77,12 +81,5 @@ enum NotificationManager {
             content: content,
             trigger: trigger
         )
-    }
-}
-
-private extension Optional where Wrapped == Date {
-    func filter(_ predicate: (Date) -> Bool) -> Date? {
-        guard let value = self, predicate(value) else { return nil }
-        return value
     }
 }
