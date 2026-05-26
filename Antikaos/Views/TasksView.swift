@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import StoreKit
+import UIKit
 
 struct TasksView: View {
     @Environment(\.modelContext) private var modelContext
@@ -769,7 +770,6 @@ private struct SwipeToDeleteDeadlineCard<Content: View>: View {
 
     @State private var horizontalOffset: CGFloat = 0
     @State private var isOpen = false
-    @State private var isDraggingHorizontally = false
 
     private let revealWidth: CGFloat = 108
 
@@ -818,34 +818,105 @@ private struct SwipeToDeleteDeadlineCard<Content: View>: View {
                 }
         }
         .contentShape(Rectangle())
-        .gesture(
-            DragGesture(minimumDistance: 4, coordinateSpace: .local)
-                .onChanged { value in
-                    let horizontal = value.translation.width
-                    let vertical = value.translation.height
-
-                    guard abs(horizontal) > abs(vertical) else { return }
-                    isDraggingHorizontally = true
-
-                    if horizontal < 0 {
-                        horizontalOffset = max(-revealWidth, horizontal)
-                    } else if isOpen {
-                        horizontalOffset = min(0, -revealWidth + horizontal)
-                    }
-                }
-                .onEnded { value in
-                    defer { isDraggingHorizontally = false }
-
-                    guard isDraggingHorizontally else { return }
-
-                    let shouldOpen = value.translation.width < -(revealWidth * 0.28) || (isOpen && value.translation.width < revealWidth * 0.2)
-
+        .background {
+            HorizontalSwipeRecognizer(
+                onSwipeLeft: {
                     withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
-                        isOpen = shouldOpen
-                        horizontalOffset = shouldOpen ? -revealWidth : 0
+                        isOpen = true
+                        horizontalOffset = -revealWidth
+                    }
+                },
+                onSwipeRight: {
+                    withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
+                        isOpen = false
+                        horizontalOffset = 0
                     }
                 }
-        )
+            )
+        }
+    }
+}
+
+private struct HorizontalSwipeRecognizer: UIViewRepresentable {
+    let onSwipeLeft: () -> Void
+    let onSwipeRight: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onSwipeLeft: onSwipeLeft, onSwipeRight: onSwipeRight)
+    }
+
+    func makeUIView(context: Context) -> SwipeRecognizerView {
+        let view = SwipeRecognizerView()
+        view.coordinator = context.coordinator
+        return view
+    }
+
+    func updateUIView(_ uiView: SwipeRecognizerView, context: Context) {
+        context.coordinator.onSwipeLeft = onSwipeLeft
+        context.coordinator.onSwipeRight = onSwipeRight
+        uiView.coordinator = context.coordinator
+        uiView.installRecognizersIfNeeded()
+    }
+
+    final class Coordinator: NSObject {
+        var onSwipeLeft: () -> Void
+        var onSwipeRight: () -> Void
+
+        init(onSwipeLeft: @escaping () -> Void, onSwipeRight: @escaping () -> Void) {
+            self.onSwipeLeft = onSwipeLeft
+            self.onSwipeRight = onSwipeRight
+        }
+
+        @objc func didSwipeLeft() {
+            onSwipeLeft()
+        }
+
+        @objc func didSwipeRight() {
+            onSwipeRight()
+        }
+    }
+
+    final class SwipeRecognizerView: UIView {
+        weak var coordinator: Coordinator?
+        private weak var installedSuperview: UIView?
+        private var recognizers: [UISwipeGestureRecognizer] = []
+
+        override func didMoveToSuperview() {
+            super.didMoveToSuperview()
+            installRecognizersIfNeeded()
+        }
+
+        override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+            false
+        }
+
+        func installRecognizersIfNeeded() {
+            guard let superview, installedSuperview !== superview, let coordinator else { return }
+
+            recognizers.forEach { installedSuperview?.removeGestureRecognizer($0) }
+
+            let left = UISwipeGestureRecognizer(target: coordinator, action: #selector(Coordinator.didSwipeLeft))
+            left.direction = .left
+            left.cancelsTouchesInView = false
+            left.delaysTouchesBegan = false
+            left.delaysTouchesEnded = false
+
+            let right = UISwipeGestureRecognizer(target: coordinator, action: #selector(Coordinator.didSwipeRight))
+            right.direction = .right
+            right.cancelsTouchesInView = false
+            right.delaysTouchesBegan = false
+            right.delaysTouchesEnded = false
+
+            superview.addGestureRecognizer(left)
+            superview.addGestureRecognizer(right)
+
+            recognizers = [left, right]
+            installedSuperview = superview
+        }
+
+        deinit {
+            recognizers.forEach { installedSuperview?.removeGestureRecognizer($0) }
+        }
     }
 }
 

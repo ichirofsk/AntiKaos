@@ -24,12 +24,27 @@ enum ChaosCalculator {
         return Int(clamp(rawChaos.rounded(), lower: 0, upper: 100))
     }
 
-    static func overallChaos(for tasks: [TaskItem], asOf date: Date = .now) -> Int {
+    static func totalChaos(for tasks: [TaskItem], asOf date: Date = .now) -> Int {
         let activeTasks = tasks.filter { !$0.isCompleted && !$0.isPastDeadline && $0.remainingSessions > 0 }
         guard !activeTasks.isEmpty else { return 0 }
 
         let totalChaos = activeTasks.reduce(0) { $0 + Double(chaosScore(for: $1, asOf: date)) }
         return Int((totalChaos / Double(activeTasks.count)).rounded())
+    }
+
+    static func realChaos(for tasks: [TaskItem], asOf date: Date = .now) -> Int {
+        let activeTasks = tasks.filter { !$0.isCompleted && !$0.isPastDeadline && $0.remainingSessions > 0 }
+        guard !activeTasks.isEmpty else { return 0 }
+
+        let cappedDeadlineCount = Double(min(activeTasks.count, 4))
+        let multiplier = 2 - (sqrt(cappedDeadlineCount + 1) / cappedDeadlineCount)
+        let rawChaos = Double(totalChaos(for: activeTasks, asOf: date)) * multiplier
+
+        return Int(clamp(rawChaos.rounded(), lower: 0, upper: 100))
+    }
+
+    static func overallChaos(for tasks: [TaskItem], asOf date: Date = .now) -> Int {
+        realChaos(for: tasks, asOf: date)
     }
 
     private static func clamp(_ value: Double, lower: Double, upper: Double) -> Double {
