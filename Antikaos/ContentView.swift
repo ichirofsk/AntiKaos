@@ -3,6 +3,7 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var premiumFlowManager: PremiumFlowManager
     @Query(sort: \TaskItem.deadlineDate) private var tasks: [TaskItem]
     @Query(sort: \modelHorasDisponiveis.updatedAt, order: .reverse) private var availableHoursModels: [modelHorasDisponiveis]
     @AppStorage("profile.userName") private var userName = ""
@@ -90,6 +91,24 @@ struct ContentView: View {
             createAvailableHoursModelIfNeeded()
             NotificationManager.requestAuthorizationIfNeeded()
             WidgetSyncManager.syncChaos(from: tasks)
+        }
+        .onOpenURL { url in
+            guard url.scheme == "antikaos" else { return }
+
+            if url.host == "premium" {
+                selectedTab = .tasks
+
+                switch url.path {
+                case "/widgets":
+                    premiumFlowManager.request(.widgets)
+                case "/deadlines":
+                    premiumFlowManager.request(.deadlines(limit: 3))
+                case "/history":
+                    premiumFlowManager.request(.history(limit: 3))
+                default:
+                    premiumFlowManager.request(.widgets)
+                }
+            }
         }
     }
 

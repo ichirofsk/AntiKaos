@@ -14,7 +14,7 @@ struct ProfileView: View {
     @State private var isHistoryExpanded = false
     @State private var draftUserName = ""
     @State private var isShowingChaosInfo = false
-    @State private var isShowingHistoryPaywall = false
+    @State private var premiumPaywallContext: PremiumPaywallContext?
 
     private var completedTasksCount: Int {
         historyEntries.filter { $0.type == .taskCompleted }.count
@@ -100,8 +100,8 @@ struct ProfileView: View {
             createAvailableHoursModelIfNeeded()
             resetDraftUserName()
         }
-        .sheet(isPresented: $isShowingHistoryPaywall) {
-            UnlimitedHistoryPaywallView()
+        .sheet(item: $premiumPaywallContext) { context in
+            PremiumPaywallView(context: context)
                 .environmentObject(premiumAccessManager)
                 .presentationDetents([.medium, .large])
         }
@@ -372,24 +372,25 @@ struct ProfileView: View {
 
                 Spacer()
 
-                if historyEntries.count > 3 {
+                if !historyEntries.isEmpty {
                     Button {
-                        if premiumAccessManager.hasUnlimitedHistory {
+                        if premiumAccessManager.hasUnlimitedHistory && historyEntries.count > 3 {
                             withAnimation(.snappy(duration: 0.24)) {
                                 isHistoryExpanded.toggle()
                             }
                         } else {
-                            isShowingHistoryPaywall = true
+                            isHistoryExpanded = false
+                            premiumPaywallContext = .history(limit: 3)
                         }
                     } label: {
                         HStack(spacing: 6) {
                             Text(
-                                premiumAccessManager.hasUnlimitedHistory
+                                premiumAccessManager.hasUnlimitedHistory && historyEntries.count > 3
                                 ? (isHistoryExpanded ? "Ver menos" : "Ver mais")
                                 : "Ver mais"
                             )
                                 .font(AppTheme.schoolbell(isVeryCompact ? 16 : 18))
-                            Image(systemName: premiumAccessManager.hasUnlimitedHistory && isHistoryExpanded ? "chevron.up" : "chevron.down")
+                            Image(systemName: premiumAccessManager.hasUnlimitedHistory && historyEntries.count > 3 && isHistoryExpanded ? "chevron.up" : "chevron.down")
                                 .font(.system(size: 14, weight: .semibold))
                         }
                         .foregroundStyle(AppTheme.primaryChaos)
@@ -500,49 +501,75 @@ struct ProfileView: View {
     }
 }
 
-private struct UnlimitedHistoryPaywallView: View {
+enum PremiumPaywallContext: Identifiable {
+    case history(limit: Int)
+    case deadlines(limit: Int)
+    case widgets
+
+    var id: String {
+        switch self {
+        case .history(let limit):
+            return "history-\(limit)"
+        case .deadlines(let limit):
+            return "deadlines-\(limit)"
+        case .widgets:
+            return "widgets"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .history:
+            return "Antikaos Premium"
+        case .deadlines:
+            return "Antikaos Premium"
+        case .widgets:
+            return "Antikaos Premium"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .history(let limit):
+            return "Para ter mais acesso ao seu histórico, desbloqueie o Premium. Na versão gratuita você vê só os últimos \(limit) registros."
+        case .deadlines(let limit):
+            return "Para criar mais deadlines, desbloqueie o Premium. Na versão gratuita você pode criar até \(limit) deadlines."
+        case .widgets:
+            return "Para usar os widgets do Antikaos, desbloqueie o Premium."
+        }
+    }
+
+    var benefits: [String] {
+        [
+            "Deadlines ilimitadas",
+            "Histórico completo",
+            "Widgets premium"
+        ]
+    }
+}
+
+struct PremiumPaywallView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var premiumAccessManager: PremiumAccessManager
+
+    let context: PremiumPaywallContext
+
+    @State private var isPurchasing = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Histórico ilimitado")
+                    Text(context.title)
                         .font(AppTheme.schoolbell(30))
                         .foregroundStyle(AppTheme.primaryText)
 
-                    Text("Veja todo o seu histórico e acompanhe sua evolução sem limite. Ideal para a proposta 1 Dollar App: uma compra única simples.")
+                    Text(context.message)
                         .font(AppTheme.schoolbell(18))
                         .foregroundStyle(AppTheme.secondaryText)
                 }
 
-                VStack(alignment: .leading, spacing: 12) {
-                    benefitRow("Acesse todos os registros antigos")
-                    benefitRow("Acompanhe sua consistência ao longo do tempo")
-                    benefitRow("Desbloqueio permanente por compra única")
-                }
-                .padding(18)
-                .background(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(Color.white.opacity(0.82))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                .stroke(AppTheme.primaryChaos.opacity(0.16), lineWidth: 1)
-                        )
-                )
-
-                ProductView(id: PremiumAccessManager.unlimitedHistoryProductID)
-                    .productViewStyle(.large)
-                    .padding(18)
-                    .background(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                    .stroke(AppTheme.primaryChaos.opacity(0.18), lineWidth: 1)
-                            )
-                    )
+                purchaseSection
 
                 Button {
                     Task {
@@ -560,6 +587,11 @@ private struct UnlimitedHistoryPaywallView: View {
                         )
                 }
                 .buttonStyle(.plain)
+
+                Text("Restaurar compra serve para recuperar um Premium já comprado antes com o mesmo Apple ID, sem cobrar de novo.")
+                    .font(AppTheme.schoolbell(14))
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(20)
         }
@@ -567,14 +599,88 @@ private struct UnlimitedHistoryPaywallView: View {
         .presentationDragIndicator(.visible)
         .onAppear {
             Task {
+                await premiumAccessManager.loadProduct()
                 await premiumAccessManager.refreshEntitlements()
             }
         }
-        .onChange(of: premiumAccessManager.hasUnlimitedHistory) { _, isUnlocked in
+        .onChange(of: premiumAccessManager.hasPremium) { _, isUnlocked in
             if isUnlocked {
                 dismiss()
             }
         }
+    }
+
+    @ViewBuilder
+    private var purchaseSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let product = premiumAccessManager.premiumProduct {
+                Text("Pagando você tem acesso a:")
+                    .font(AppTheme.schoolbell(22))
+                    .foregroundStyle(AppTheme.primaryText)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(context.benefits, id: \.self) { text in
+                        benefitRow(text)
+                    }
+                }
+                .padding(18)
+                .background(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(Color.white.opacity(0.82))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                .stroke(AppTheme.primaryChaos.opacity(0.16), lineWidth: 1)
+                        )
+                )
+
+                Button {
+                    Task {
+                        isPurchasing = true
+                        _ = await premiumAccessManager.purchasePremium()
+                        isPurchasing = false
+                    }
+                } label: {
+                    HStack {
+                        if isPurchasing {
+                            ProgressView()
+                                .tint(.white)
+                        }
+
+                        Text(isPurchasing ? "Processando..." : "Desbloquear Premium - \(displayPriceText(for: product))")
+                            .font(AppTheme.schoolbell(20))
+                            .foregroundStyle(.white)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .fill(AppTheme.primaryChaos)
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(isPurchasing)
+            } else {
+                ProgressView("Carregando preço...")
+                    .font(AppTheme.schoolbell(16))
+                    .tint(AppTheme.primaryChaos)
+            }
+
+            if let purchaseErrorMessage = premiumAccessManager.purchaseErrorMessage {
+                Text(purchaseErrorMessage)
+                    .font(AppTheme.schoolbell(14))
+                    .foregroundStyle(AppTheme.critical)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(AppTheme.primaryChaos.opacity(0.18), lineWidth: 1)
+                )
+        )
     }
 
     private func benefitRow(_ text: String) -> some View {
@@ -586,6 +692,19 @@ private struct UnlimitedHistoryPaywallView: View {
                 .font(AppTheme.schoolbell(16))
                 .foregroundStyle(AppTheme.primaryText)
         }
+    }
+
+    private func displayPriceText(for product: Product) -> String {
+        let trimmedPrice = product.displayPrice.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = trimmedPrice
+            .replacingOccurrences(of: "\u{00A0}", with: " ")
+            .lowercased()
+
+        if normalized.isEmpty || normalized == "r$ 0,00" || normalized == "r$0,00" || normalized == "0,00" || normalized == "0.00" {
+            return "R$ 4,90"
+        }
+
+        return trimmedPrice
     }
 }
 

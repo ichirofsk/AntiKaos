@@ -4,6 +4,7 @@ struct EditTaskView: View {
     @Environment(\.dismiss) private var dismiss
 
     private let task: TaskItem?
+    private let onDelete: (() -> Void)?
     private let onSave: (TaskFormData) -> Void
 
     @State private var title: String
@@ -22,8 +23,9 @@ struct EditTaskView: View {
     @State private var shouldSyncWithApple: Bool
     @FocusState private var focusedNumericField: NumericField?
 
-    init(task: TaskItem? = nil, onSave: @escaping (TaskFormData) -> Void) {
+    init(task: TaskItem? = nil, onDelete: (() -> Void)? = nil, onSave: @escaping (TaskFormData) -> Void) {
         self.task = task
+        self.onDelete = onDelete
         self.onSave = onSave
         let initialDeadlineDate = task?.deadlineDate ?? Calendar.current.date(byAdding: .day, value: 5, to: .now) ?? .now
         let initialNotes = task?.notes ?? ""

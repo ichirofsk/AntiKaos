@@ -6,6 +6,7 @@ enum WidgetShared {
     static let widgetKind = "AntikaosChaosWidget"
     static let chaosValueKey = "widget.chaosValue"
     static let deadlinesKey = "widget.deadlines"
+    static let hasPremiumAccessKey = "widget.hasPremiumAccess"
 }
 
 private enum WidgetFont {
@@ -22,6 +23,7 @@ struct AntikaosWidgetEntry: TimelineEntry {
     let date: Date
     let chaosValue: Int
     let deadlines: [WidgetDeadlineEntry]
+    let hasPremiumAccess: Bool
 }
 
 struct WidgetDeadlineEntry: Codable, Identifiable {
@@ -42,7 +44,8 @@ struct AntikaosWidgetProvider: TimelineProvider {
                 .init(id: UUID(), title: "Prova de Cálculo", deadlineDate: .now.addingTimeInterval(86400), difficulty: 74, completedSessions: 1, totalSessions: 3),
                 .init(id: UUID(), title: "Trabalho de Design", deadlineDate: .now.addingTimeInterval(172800), difficulty: 48, completedSessions: 2, totalSessions: 4),
                 .init(id: UUID(), title: "Estudar SwiftUI", deadlineDate: .now.addingTimeInterval(345600), difficulty: 26, completedSessions: 0, totalSessions: 2)
-            ]
+            ],
+            hasPremiumAccess: true
         )
     }
 
@@ -59,6 +62,7 @@ struct AntikaosWidgetProvider: TimelineProvider {
     private func loadEntry() -> AntikaosWidgetEntry {
         let defaults = UserDefaults(suiteName: WidgetShared.appGroupID)
         let value = defaults?.integer(forKey: WidgetShared.chaosValueKey) ?? 0
+        let hasPremiumAccess = defaults?.bool(forKey: WidgetShared.hasPremiumAccessKey) ?? false
         let deadlines: [WidgetDeadlineEntry]
         if let data = defaults?.data(forKey: WidgetShared.deadlinesKey),
            let decoded = try? JSONDecoder().decode([WidgetDeadlineEntry].self, from: data) {
@@ -67,7 +71,7 @@ struct AntikaosWidgetProvider: TimelineProvider {
             deadlines = []
         }
 
-        return AntikaosWidgetEntry(date: .now, chaosValue: value, deadlines: deadlines)
+        return AntikaosWidgetEntry(date: .now, chaosValue: value, deadlines: deadlines, hasPremiumAccess: hasPremiumAccess)
     }
 }
 
@@ -122,11 +126,44 @@ struct AntikaosChaosWidgetView: View {
     var entry: AntikaosWidgetProvider.Entry
 
     var body: some View {
-        switch family {
-        case .systemMedium:
-            mediumWidget
-        default:
-            smallWidget
+        if !entry.hasPremiumAccess {
+            lockedWidget
+        } else {
+            switch family {
+            case .systemMedium:
+                mediumWidget
+            default:
+                smallWidget
+            }
+        }
+    }
+
+    private var lockedWidget: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Antikaos Premium")
+                .font(WidgetFont.schoolbell(size: 22))
+                .foregroundStyle(Color.black.opacity(0.88))
+
+            Text("Desbloqueie widgets, histórico ilimitado e deadlines sem limite no app.")
+                .font(WidgetFont.schoolbell(size: 14))
+                .foregroundStyle(Color.black.opacity(0.62))
+                .multilineTextAlignment(.leading)
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                Text("Abra o app para desbloquear")
+                    .font(WidgetFont.schoolbell(size: 14))
+            }
+            .foregroundStyle(Color(red: 216 / 255, green: 113 / 255, blue: 66 / 255))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(18)
+        .widgetURL(URL(string: "antikaos://premium/widgets"))
+        .containerBackground(for: .widget) {
+            Color(red: 244 / 255, green: 237 / 255, blue: 232 / 255)
         }
     }
 

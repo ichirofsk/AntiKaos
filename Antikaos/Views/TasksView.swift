@@ -6,15 +6,17 @@ import UIKit
 struct TasksView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var premiumAccessManager: PremiumAccessManager
+    @EnvironmentObject private var premiumFlowManager: PremiumFlowManager
     @Query(sort: \TaskItem.deadlineDate, order: .forward) private var tasks: [TaskItem]
     @Query(sort: \GeneratedTaskItem.scheduledDate, order: .forward) private var generatedTasks: [GeneratedTaskItem]
 
     @State private var editorRoute: TaskEditorRoute?
     @State private var selectedFilter: DeadlineFilter = .all
     @State private var isShowingLegend = false
-    @State private var isShowingDeadlinePaywall = false
+    @State private var premiumPaywallContext: PremiumPaywallContext?
+    @State private var isShowingWidgetInstructions = false
 
-    private let freeDeadlineLimit = 5
+    private let freeDeadlineLimit = 3
 
     private var pendingTasks: [TaskItem] {
         tasks
@@ -76,7 +78,6 @@ struct TasksView: View {
                         summaryCard(isCompact: isCompact, isVeryCompact: isVeryCompact)
                         filterRow(isCompact: isCompact, isVeryCompact: isVeryCompact)
                         tasksSection(isCompact: isCompact, isVeryCompact: isVeryCompact)
-                        analyticsEntryCard(isCompact: isCompact, isVeryCompact: isVeryCompact)
                     }
                     .padding(.horizontal, isVeryCompact ? 14 : (isCompact ? 16 : 20))
                     .padding(.top, isVeryCompact ? 12 : (isCompact ? 14 : 18))
@@ -95,7 +96,12 @@ struct TasksView: View {
         .navigationBarTitleDisplayMode(.inline)
         .animation(.easeInOut(duration: 0.22), value: isShowingLegend)
         .sheet(item: $editorRoute) { route in
-            EditTaskView(task: route.task) { formData in
+            EditTaskView(task: route.task, onDelete: route.task == nil ? nil : {
+                if let task = route.task {
+                    TaskManager(modelContext: modelContext).deleteTask(task)
+                }
+                editorRoute = nil
+            }) { formData in
                 let manager = TaskManager(modelContext: modelContext)
                 withAnimation(.snappy) {
                     if let task = route.task {
@@ -108,10 +114,25 @@ struct TasksView: View {
             }
             .presentationDetents([.large])
         }
-        .sheet(isPresented: $isShowingDeadlinePaywall) {
-            UnlimitedDeadlinesPaywallView(limit: freeDeadlineLimit)
+        .sheet(item: $premiumPaywallContext) { context in
+            PremiumPaywallView(context: context)
                 .environmentObject(premiumAccessManager)
                 .presentationDetents([.medium, .large])
+        }
+        .alert("Como adicionar o widget", isPresented: $isShowingWidgetInstructions) {
+            Button("Entendi", role: .cancel) { }
+        } message: {
+            Text("Na tela inicial do iPhone, toque e segure em uma área vazia, toque em +, procure por Antikaos e escolha o widget.")
+        }
+        .onAppear {
+            if let requestedContext = premiumFlowManager.consume() {
+                premiumPaywallContext = requestedContext
+            }
+        }
+        .onChange(of: premiumFlowManager.requestedContext?.id) { _, _ in
+            if let requestedContext = premiumFlowManager.consume() {
+                premiumPaywallContext = requestedContext
+            }
         }
     }
 
@@ -146,7 +167,7 @@ struct TasksView: View {
                     if canCreateDeadline {
                         editorRoute = .create
                     } else {
-                        isShowingDeadlinePaywall = true
+                        premiumPaywallContext = .deadlines(limit: freeDeadlineLimit)
                     }
                 } label: {
                     Image(systemName: "plus")
@@ -340,59 +361,6 @@ struct TasksView: View {
                 }
             }
         }
-    }
-
-    private func analyticsEntryCard(isCompact: Bool, isVeryCompact: Bool) -> some View {
-        NavigationLink {
-            PerformanceAnalyticsView()
-        } label: {
-            HStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
-                        Text("Análise do desempenho")
-                            .font(AppTheme.schoolbell(isVeryCompact ? 18 : (isCompact ? 20 : 22)))
-                            .foregroundStyle(AppTheme.primaryText)
-
-                        Text("Premium")
-                            .font(AppTheme.schoolbell(isVeryCompact ? 10 : 12))
-                            .foregroundStyle(AppTheme.primaryChaos)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule()
-                                    .fill(AppTheme.primaryChaos.opacity(0.12))
-                            )
-                    }
-
-                    Text("Veja gráficos de evolução, consistência e impacto do caos numa tela dedicada.")
-                        .font(AppTheme.schoolbell(isVeryCompact ? 13 : 15))
-                        .foregroundStyle(AppTheme.secondaryText)
-                        .multilineTextAlignment(.leading)
-                }
-
-                Spacer(minLength: 10)
-
-                Image(systemName: "chart.line.uptrend.xyaxis")
-                    .font(.system(size: isVeryCompact ? 24 : 28, weight: .semibold))
-                    .foregroundStyle(AppTheme.primaryChaos)
-                    .frame(width: isVeryCompact ? 44 : 52, height: isVeryCompact ? 44 : 52)
-                    .background(
-                        Circle()
-                            .fill(Color.white.opacity(0.72))
-                    )
-            }
-            .padding(isVeryCompact ? 14 : 16)
-            .background(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .stroke(AppTheme.primaryChaos.opacity(0.18), lineWidth: 1)
-                    )
-            )
-            .shadow(color: AppTheme.primaryChaos.opacity(0.08), radius: 10, x: 0, y: 5)
-        }
-        .buttonStyle(.plain)
     }
 
     private func deadlineCard(_ task: TaskItem, isCompact: Bool, isVeryCompact: Bool) -> some View {
@@ -672,97 +640,6 @@ struct TasksView: View {
     }
 }
 
-private struct UnlimitedDeadlinesPaywallView: View {
-    @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var premiumAccessManager: PremiumAccessManager
-
-    let limit: Int
-
-    var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Deadlines ilimitadas")
-                        .font(AppTheme.schoolbell(30))
-                        .foregroundStyle(AppTheme.primaryText)
-
-                    Text("Na versão gratuita você pode criar até \(limit) deadlines. Desbloqueie a versão completa para criar quantas quiser.")
-                        .font(AppTheme.schoolbell(18))
-                        .foregroundStyle(AppTheme.secondaryText)
-                }
-
-                VStack(alignment: .leading, spacing: 12) {
-                    benefitRow("Crie deadlines sem limite")
-                    benefitRow("Continue usando a mesma identidade do app")
-                    benefitRow("Compra única, ideal para a proposta 1 Dollar App")
-                }
-                .padding(18)
-                .background(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(Color.white.opacity(0.82))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                .stroke(AppTheme.primaryChaos.opacity(0.16), lineWidth: 1)
-                        )
-                )
-
-                ProductView(id: PremiumAccessManager.unlimitedDeadlinesProductID)
-                    .productViewStyle(.large)
-                    .padding(18)
-                    .background(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                    .stroke(AppTheme.primaryChaos.opacity(0.18), lineWidth: 1)
-                            )
-                    )
-
-                Button {
-                    Task {
-                        await premiumAccessManager.restorePurchases()
-                    }
-                } label: {
-                    Text("Restaurar compra")
-                        .font(AppTheme.schoolbell(18))
-                        .foregroundStyle(AppTheme.primaryChaos)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .stroke(AppTheme.primaryChaos.opacity(0.3), lineWidth: 1)
-                        )
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(20)
-        }
-        .background(AppTheme.background.ignoresSafeArea())
-        .presentationDragIndicator(.visible)
-        .onAppear {
-            Task {
-                await premiumAccessManager.refreshEntitlements()
-            }
-        }
-        .onChange(of: premiumAccessManager.hasUnlimitedDeadlines) { _, isUnlocked in
-            if isUnlocked {
-                dismiss()
-            }
-        }
-    }
-
-    private func benefitRow(_ text: String) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(AppTheme.primaryChaos)
-
-            Text(text)
-                .font(AppTheme.schoolbell(16))
-                .foregroundStyle(AppTheme.primaryText)
-        }
-    }
-}
-
 private struct SwipeToDeleteDeadlineCard<Content: View>: View {
     let onDelete: () -> Void
     let onTap: () -> Void
@@ -806,6 +683,44 @@ private struct SwipeToDeleteDeadlineCard<Content: View>: View {
 
             content
                 .offset(x: horizontalOffset)
+                .gesture(
+                    DragGesture(minimumDistance: 12, coordinateSpace: .local)
+                        .onChanged { value in
+                            let horizontal = value.translation.width
+                            let vertical = value.translation.height
+
+                            guard abs(horizontal) > abs(vertical) else { return }
+
+                            if horizontal < 0 {
+                                horizontalOffset = max(horizontal, -revealWidth)
+                            } else if isOpen {
+                                horizontalOffset = min(0, -revealWidth + horizontal)
+                            }
+                        }
+                        .onEnded { value in
+                            let horizontal = value.translation.width
+                            let vertical = value.translation.height
+
+                            guard abs(horizontal) > abs(vertical) else {
+                                if isOpen {
+                                    withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
+                                        horizontalOffset = -revealWidth
+                                    }
+                                }
+                                return
+                            }
+
+                            withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
+                                if horizontal < -36 {
+                                    isOpen = true
+                                    horizontalOffset = -revealWidth
+                                } else {
+                                    isOpen = false
+                                    horizontalOffset = 0
+                                }
+                            }
+                        }
+                )
                 .onTapGesture {
                     if isOpen {
                         withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
@@ -818,105 +733,6 @@ private struct SwipeToDeleteDeadlineCard<Content: View>: View {
                 }
         }
         .contentShape(Rectangle())
-        .background {
-            HorizontalSwipeRecognizer(
-                onSwipeLeft: {
-                    withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
-                        isOpen = true
-                        horizontalOffset = -revealWidth
-                    }
-                },
-                onSwipeRight: {
-                    withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
-                        isOpen = false
-                        horizontalOffset = 0
-                    }
-                }
-            )
-        }
-    }
-}
-
-private struct HorizontalSwipeRecognizer: UIViewRepresentable {
-    let onSwipeLeft: () -> Void
-    let onSwipeRight: () -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onSwipeLeft: onSwipeLeft, onSwipeRight: onSwipeRight)
-    }
-
-    func makeUIView(context: Context) -> SwipeRecognizerView {
-        let view = SwipeRecognizerView()
-        view.coordinator = context.coordinator
-        return view
-    }
-
-    func updateUIView(_ uiView: SwipeRecognizerView, context: Context) {
-        context.coordinator.onSwipeLeft = onSwipeLeft
-        context.coordinator.onSwipeRight = onSwipeRight
-        uiView.coordinator = context.coordinator
-        uiView.installRecognizersIfNeeded()
-    }
-
-    final class Coordinator: NSObject {
-        var onSwipeLeft: () -> Void
-        var onSwipeRight: () -> Void
-
-        init(onSwipeLeft: @escaping () -> Void, onSwipeRight: @escaping () -> Void) {
-            self.onSwipeLeft = onSwipeLeft
-            self.onSwipeRight = onSwipeRight
-        }
-
-        @objc func didSwipeLeft() {
-            onSwipeLeft()
-        }
-
-        @objc func didSwipeRight() {
-            onSwipeRight()
-        }
-    }
-
-    final class SwipeRecognizerView: UIView {
-        weak var coordinator: Coordinator?
-        private weak var installedSuperview: UIView?
-        private var recognizers: [UISwipeGestureRecognizer] = []
-
-        override func didMoveToSuperview() {
-            super.didMoveToSuperview()
-            installRecognizersIfNeeded()
-        }
-
-        override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
-            false
-        }
-
-        func installRecognizersIfNeeded() {
-            guard let superview, installedSuperview !== superview, let coordinator else { return }
-
-            recognizers.forEach { installedSuperview?.removeGestureRecognizer($0) }
-
-            let left = UISwipeGestureRecognizer(target: coordinator, action: #selector(Coordinator.didSwipeLeft))
-            left.direction = .left
-            left.cancelsTouchesInView = false
-            left.delaysTouchesBegan = false
-            left.delaysTouchesEnded = false
-
-            let right = UISwipeGestureRecognizer(target: coordinator, action: #selector(Coordinator.didSwipeRight))
-            right.direction = .right
-            right.cancelsTouchesInView = false
-            right.delaysTouchesBegan = false
-            right.delaysTouchesEnded = false
-
-            superview.addGestureRecognizer(left)
-            superview.addGestureRecognizer(right)
-
-            recognizers = [left, right]
-            installedSuperview = superview
-        }
-
-        deinit {
-            recognizers.forEach { installedSuperview?.removeGestureRecognizer($0) }
-        }
     }
 }
 

@@ -516,6 +516,14 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Antikaos;
+				INFOPLIST_KEY_CFBundleURLTypes = (
+					{
+						CFBundleURLName = br.com.antonio.Antikaos;
+						CFBundleURLSchemes = (
+							antikaos,
+						);
+					},
+				);
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "O Antikaos usa o Calendário para criar e atualizar suas deadlines no calendário Antikaos.";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "O Antikaos usa o Calendário para mostrar feriados e integrar suas deadlines.";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "O Antikaos usa Lembretes para criar e atualizar suas atividades como to-dos.";
@@ -560,6 +568,14 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Antikaos;
+				INFOPLIST_KEY_CFBundleURLTypes = (
+					{
+						CFBundleURLName = br.com.antonio.Antikaos;
+						CFBundleURLSchemes = (
+							antikaos,
+						);
+					},
+				);
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "O Antikaos usa o Calendário para criar e atualizar suas deadlines no calendário Antikaos.";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "O Antikaos usa o Calendário para mostrar feriados e integrar suas deadlines.";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "O Antikaos usa Lembretes para criar e atualizar suas atividades como to-dos.";

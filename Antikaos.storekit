@@ -5,43 +5,23 @@
   ],
   "products" : [
     {
-      "displayPrice" : "0.99",
+      "displayPrice" : "R$ 4,90",
       "familyShareable" : false,
       "internalID" : "E0F8C51F",
       "localizations" : [
         {
-          "description" : "Desbloqueia o histórico ilimitado do Antikaos.",
-          "displayName" : "Histórico ilimitado",
+          "description" : "Desbloqueia deadlines ilimitadas, histórico completo e widgets premium no Antikaos.",
+          "displayName" : "Antikaos Premium",
           "locale" : "pt_BR"
         },
         {
-          "description" : "Unlocks unlimited history in Antikaos.",
-          "displayName" : "Unlimited history",
+          "description" : "Unlocks unlimited deadlines, full history, and premium widgets in Antikaos.",
+          "displayName" : "Antikaos Premium",
           "locale" : "en_US"
         }
       ],
-      "productID" : "br.com.antonio.Antikaos.unlimitedHistory",
-      "referenceName" : "Unlimited History",
-      "type" : "NonConsumable"
-    },
-    {
-      "displayPrice" : "0.99",
-      "familyShareable" : false,
-      "internalID" : "D14A3C2B",
-      "localizations" : [
-        {
-          "description" : "Desbloqueia a criação ilimitada de deadlines no Antikaos.",
-          "displayName" : "Deadlines ilimitadas",
-          "locale" : "pt_BR"
-        },
-        {
-          "description" : "Unlocks unlimited deadline creation in Antikaos.",
-          "displayName" : "Unlimited deadlines",
-          "locale" : "en_US"
-        }
-      ],
-      "productID" : "br.com.antonio.Antikaos.unlimitedDeadlines",
-      "referenceName" : "Unlimited Deadlines",
+      "productID" : "br.com.antonio.Antikaos.premium",
+      "referenceName" : "Antikaos Premium",
       "type" : "NonConsumable"
     }
   ],

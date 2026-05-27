@@ -7,6 +7,7 @@ enum WidgetShared {
     static let chaosValueKey = "widget.chaosValue"
     static let chaosUpdatedAtKey = "widget.chaosUpdatedAt"
     static let deadlinesKey = "widget.deadlines"
+    static let hasPremiumAccessKey = "widget.hasPremiumAccess"
 }
 
 struct WidgetDeadlinePayload: Codable {
