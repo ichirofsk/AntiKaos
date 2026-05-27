@@ -32,8 +32,7 @@ struct DashboardView: View {
 
     private var todayFocus: [TodayTodoEntry] {
         let calendar = Calendar.current
-
-        return generatedTasks
+        let generatedToday = generatedTasks
             .filter { calendar.isDate($0.scheduledDate, inSameDayAs: currentDate) }
             .map {
                 TodayTodoEntry(
@@ -56,6 +55,33 @@ struct DashboardView: View {
 
                 return $0.title < $1.title
             }
+
+        if !generatedToday.isEmpty {
+            return generatedToday
+        }
+
+        let startOfToday = calendar.startOfDay(for: currentDate)
+        let fallbackTasks = tasks
+            .filter { !$0.isCompleted && calendar.startOfDay(for: $0.deadlineDate) >= startOfToday }
+            .sorted {
+                if $0.deadlineDate != $1.deadlineDate {
+                    return $0.deadlineDate < $1.deadlineDate
+                }
+
+                return $0.updatedAt > $1.updatedAt
+            }
+            .prefix(3)
+
+        return fallbackTasks.map { task in
+            TodayTodoEntry(
+                id: "deadline-\(task.id.uuidString)",
+                generatedTaskID: nil,
+                parentTaskID: task.id,
+                title: task.title,
+                date: task.deadlineDate,
+                isCompleted: false
+            )
+        }
     }
 
     private var todayDotStatuses: [Bool] {
@@ -430,10 +456,10 @@ struct DashboardView: View {
     }
 
     private func uncomplete(_ task: TodayTodoEntry) {
-        guard task.isCompleted else { return }
+        guard task.isCompleted, let generatedTaskID = task.generatedTaskID else { return }
 
         withAnimation(.snappy) {
-            TaskManager(modelContext: modelContext).uncompleteGeneratedTask(id: task.generatedTaskID)
+            TaskManager(modelContext: modelContext).uncompleteGeneratedTask(id: generatedTaskID)
         }
     }
 
@@ -476,8 +502,7 @@ private struct TodayTodoView: View {
 
     private var tasks: [TodayTodoEntry] {
         let calendar = Calendar.current
-
-        return generatedTasks
+        let generatedToday = generatedTasks
             .filter { calendar.isDate($0.scheduledDate, inSameDayAs: currentDate) }
             .map {
                 TodayTodoEntry(
@@ -500,6 +525,33 @@ private struct TodayTodoView: View {
 
                 return $0.title < $1.title
             }
+
+        if !generatedToday.isEmpty {
+            return generatedToday
+        }
+
+        let startOfToday = calendar.startOfDay(for: currentDate)
+        let fallbackTasks = deadlineTasks
+            .filter { !$0.isCompleted && calendar.startOfDay(for: $0.deadlineDate) >= startOfToday }
+            .sorted {
+                if $0.deadlineDate != $1.deadlineDate {
+                    return $0.deadlineDate < $1.deadlineDate
+                }
+
+                return $0.updatedAt > $1.updatedAt
+            }
+            .prefix(3)
+
+        return fallbackTasks.map { task in
+            TodayTodoEntry(
+                id: "deadline-\(task.id.uuidString)",
+                generatedTaskID: nil,
+                parentTaskID: task.id,
+                title: task.title,
+                date: task.deadlineDate,
+                isCompleted: false
+            )
+        }
     }
 
     private var didCompleteMission: Bool {
@@ -632,17 +684,17 @@ private struct TodayTodoView: View {
     }
 
     private func uncomplete(_ task: TodayTodoEntry) {
-        guard task.isCompleted else { return }
+        guard task.isCompleted, let generatedTaskID = task.generatedTaskID else { return }
 
         withAnimation(.snappy) {
-            TaskManager(modelContext: modelContext).uncompleteGeneratedTask(id: task.generatedTaskID)
+            TaskManager(modelContext: modelContext).uncompleteGeneratedTask(id: generatedTaskID)
         }
     }
 }
 
 private struct TodayTodoEntry: Identifiable {
     let id: String
-    let generatedTaskID: UUID
+    let generatedTaskID: UUID?
     let parentTaskID: UUID
     let title: String
     let date: Date

@@ -511,19 +511,12 @@
 				CODE_SIGN_ENTITLEMENTS = Antikaos/Antikaos.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 639W8777DZ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Antikaos;
-				INFOPLIST_KEY_CFBundleURLTypes = (
-					{
-						CFBundleURLName = br.com.antonio.Antikaos;
-						CFBundleURLSchemes = (
-							antikaos,
-						);
-					},
-				);
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"br.com.antonio.Antikaos\";\n    CFBundleURLSchemes =     (\n        antikaos\n    );\n}";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "O Antikaos usa o Calendário para criar e atualizar suas deadlines no calendário Antikaos.";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "O Antikaos usa o Calendário para mostrar feriados e integrar suas deadlines.";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "O Antikaos usa Lembretes para criar e atualizar suas atividades como to-dos.";
@@ -538,7 +531,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = br.com.antonio.Antikaos;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -563,19 +556,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Antikaos/Antikaos.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 639W8777DZ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Antikaos;
-				INFOPLIST_KEY_CFBundleURLTypes = (
-					{
-						CFBundleURLName = br.com.antonio.Antikaos;
-						CFBundleURLSchemes = (
-							antikaos,
-						);
-					},
-				);
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleURLName = \"br.com.antonio.Antikaos\";\n    CFBundleURLSchemes =     (\n        antikaos\n    );\n}";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "O Antikaos usa o Calendário para criar e atualizar suas deadlines no calendário Antikaos.";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "O Antikaos usa o Calendário para mostrar feriados e integrar suas deadlines.";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "O Antikaos usa Lembretes para criar e atualizar suas atividades como to-dos.";
@@ -590,7 +576,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = br.com.antonio.Antikaos;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
