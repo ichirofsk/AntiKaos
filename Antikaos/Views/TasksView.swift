@@ -164,6 +164,7 @@ struct TasksView: View {
                 .buttonStyle(.plain)
 
                 Button {
+                    HapticManager.impact(.light)
                     if canCreateDeadline {
                         editorRoute = .create
                     } else {
@@ -198,6 +199,7 @@ struct TasksView: View {
                 Spacer()
 
                 Button {
+                    HapticManager.impact(.light)
                     isShowingLegend = true
                 } label: {
                     Image(systemName: "info.circle")
@@ -315,6 +317,7 @@ struct TasksView: View {
                 let isSelected = selectedFilter == filter
 
                 Button {
+                    HapticManager.selection()
                     withAnimation(.snappy(duration: 0.22)) {
                         selectedFilter = filter
                     }
@@ -371,8 +374,8 @@ struct TasksView: View {
         let difficultyValue = "Dificuldade \(task.perceivedDifficulty)"
         let difficultyText = difficultyLabel(for: task)
         let dateLabel = deadlineDateLabel(for: task)
-        let cardHeight = isVeryCompact ? 122.0 : 128.0
-        let dateWidth = isVeryCompact ? 86.0 : 92.0
+        let cardHeight = isVeryCompact ? 126.0 : 134.0
+        let dateWidth = isVeryCompact ? 90.0 : 98.0
 
         let cardContent = HStack(alignment: .center, spacing: isVeryCompact ? 10 : 14) {
             HStack(alignment: .center, spacing: isVeryCompact ? 10 : 14) {
@@ -410,8 +413,14 @@ struct TasksView: View {
         .contentShape(Rectangle())
 
         return SwipeToDeleteDeadlineCard(
-            onDelete: { delete(task) },
-            onTap: { editorRoute = .edit(task) }
+            onDelete: {
+                HapticManager.notify(.warning)
+                delete(task)
+            },
+            onTap: {
+                HapticManager.impact(.light)
+                editorRoute = .edit(task)
+            }
         ) {
             cardContent
         }
@@ -425,13 +434,13 @@ struct TasksView: View {
     ) -> some View {
         VStack(spacing: isVeryCompact ? 8 : 10) {
             Text(verbatim: dateLabel)
-                .font(AppTheme.schoolbell(isVeryCompact ? 20 : 24))
+                .font(AppTheme.schoolbell(isVeryCompact ? 22 : 26))
                 .foregroundStyle(tone)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
 
             Text(verbatim: difficultyValue)
-                .font(AppTheme.schoolbell(isVeryCompact ? 9 : 11))
+                .font(AppTheme.schoolbell(isVeryCompact ? 10 : 12))
                 .foregroundStyle(tone)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
@@ -452,13 +461,13 @@ struct TasksView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: isVeryCompact ? 5 : 6) {
             Text(verbatim: title)
-                .font(AppTheme.schoolbell(isVeryCompact ? 15 : 18))
+                .font(AppTheme.schoolbell(isVeryCompact ? 17 : 20))
                 .foregroundStyle(AppTheme.primaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
 
             Text(verbatim: difficultyText)
-                .font(AppTheme.schoolbell(isVeryCompact ? 12 : 14))
+                .font(AppTheme.schoolbell(isVeryCompact ? 13 : 15))
                 .foregroundStyle(textTone)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
@@ -502,7 +511,7 @@ struct TasksView: View {
             .frame(height: 7)
 
             Text(verbatim: sessionsProgressText)
-                .font(AppTheme.schoolbell(isVeryCompact ? 10 : 12))
+                .font(AppTheme.schoolbell(isVeryCompact ? 11 : 13))
                 .foregroundStyle(AppTheme.primaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)

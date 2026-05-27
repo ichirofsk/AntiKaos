@@ -70,18 +70,21 @@ struct DashboardView: View {
 
                 return $0.updatedAt > $1.updatedAt
             }
-            .prefix(3)
-
-        return fallbackTasks.map { task in
-            TodayTodoEntry(
-                id: "deadline-\(task.id.uuidString)",
-                generatedTaskID: nil,
-                parentTaskID: task.id,
-                title: task.title,
-                date: task.deadlineDate,
-                isCompleted: false
-            )
+        
+        let fallbackEntries = fallbackTasks.flatMap { task in
+            Array(0..<max(task.remainingSessions, 1)).map { sessionIndex in
+                TodayTodoEntry(
+                    id: "deadline-\(task.id.uuidString)-\(sessionIndex)",
+                    generatedTaskID: nil,
+                    parentTaskID: task.id,
+                    title: task.title,
+                    date: task.deadlineDate,
+                    isCompleted: false
+                )
+            }
         }
+
+        return Array(fallbackEntries.prefix(3))
     }
 
     private var todayDotStatuses: [Bool] {
@@ -232,6 +235,7 @@ struct DashboardView: View {
                 Spacer()
 
                 Button {
+                    HapticManager.impact(.light)
                     isShowingChaosInfo = true
                 } label: {
                     Image(systemName: "info.circle")
@@ -267,6 +271,7 @@ struct DashboardView: View {
                     Spacer()
 
                     Button {
+                        HapticManager.selection()
                         isShowingChaosInfo = false
                     } label: {
                         Image(systemName: "xmark")
@@ -289,6 +294,7 @@ struct DashboardView: View {
                 .frame(maxWidth: .infinity)
 
                 Button {
+                    HapticManager.selection()
                     isShowingChaosInfo = false
                 } label: {
                     Text("Entendi")
@@ -328,6 +334,7 @@ struct DashboardView: View {
                 Spacer()
 
                 Button {
+                    HapticManager.selection()
                     withAnimation(.snappy(duration: 0.24)) {
                         isTodoExpanded.toggle()
                     }
@@ -364,6 +371,7 @@ struct DashboardView: View {
                             HStack(spacing: 12) {
                                 if !task.isCompleted {
                                     Button {
+                                        HapticManager.notify(.success)
                                         complete(task)
                                     } label: {
                                         Image(systemName: "checkmark.circle.fill")
@@ -394,6 +402,7 @@ struct DashboardView: View {
 
                                     if task.isCompleted {
                                         Button {
+                                            HapticManager.selection()
                                             uncomplete(task)
                                         } label: {
                                             Image(systemName: "arrow.uturn.backward.circle.fill")
@@ -540,18 +549,21 @@ private struct TodayTodoView: View {
 
                 return $0.updatedAt > $1.updatedAt
             }
-            .prefix(3)
 
-        return fallbackTasks.map { task in
-            TodayTodoEntry(
-                id: "deadline-\(task.id.uuidString)",
-                generatedTaskID: nil,
-                parentTaskID: task.id,
-                title: task.title,
-                date: task.deadlineDate,
-                isCompleted: false
-            )
+        let fallbackEntries = fallbackTasks.flatMap { task in
+            Array(0..<max(task.remainingSessions, 1)).map { sessionIndex in
+                TodayTodoEntry(
+                    id: "deadline-\(task.id.uuidString)-\(sessionIndex)",
+                    generatedTaskID: nil,
+                    parentTaskID: task.id,
+                    title: task.title,
+                    date: task.deadlineDate,
+                    isCompleted: false
+                )
+            }
         }
+
+        return Array(fallbackEntries.prefix(3))
     }
 
     private var didCompleteMission: Bool {

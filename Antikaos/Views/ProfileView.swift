@@ -154,6 +154,7 @@ struct ProfileView: View {
             Spacer(minLength: 10)
 
             Button {
+                HapticManager.selection()
                 withAnimation(.snappy(duration: 0.22)) {
                     if isEditingUserName {
                         resetDraftUserName()
@@ -197,6 +198,7 @@ struct ProfileView: View {
                             .minimumScaleFactor(0.8)
 
                         Button {
+                            HapticManager.selection()
                             withAnimation(.snappy(duration: 0.22)) {
                                 isShowingChaosInfo.toggle()
                             }
@@ -330,6 +332,7 @@ struct ProfileView: View {
                 .foregroundStyle(AppTheme.primaryText)
 
             Button("Entendi") {
+                HapticManager.selection()
                 withAnimation(.snappy(duration: 0.22)) {
                     isShowingChaosInfo = false
                 }
@@ -375,10 +378,12 @@ struct ProfileView: View {
                 if !historyEntries.isEmpty {
                     Button {
                         if premiumAccessManager.hasUnlimitedHistory && historyEntries.count > 3 {
+                            HapticManager.selection()
                             withAnimation(.snappy(duration: 0.24)) {
                                 isHistoryExpanded.toggle()
                             }
                         } else {
+                            HapticManager.impact(.medium)
                             isHistoryExpanded = false
                             premiumPaywallContext = .history(limit: 3)
                         }
@@ -492,6 +497,7 @@ struct ProfileView: View {
     private func saveDraftUserName() {
         guard !trimmedDraftUserName.isEmpty else { return }
 
+        HapticManager.notify(.success)
         userName = trimmedDraftUserName
         draftUserName = trimmedDraftUserName
 

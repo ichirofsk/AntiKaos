@@ -191,6 +191,7 @@ struct EditTaskView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(AppStrings.localized("common.cancel")) {
+                        HapticManager.selection()
                         dismiss()
                     }
                     .font(AppTheme.schoolbell(18))
@@ -199,6 +200,7 @@ struct EditTaskView: View {
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button(AppStrings.localized("common.save")) {
+                        HapticManager.notify(.success)
                         save()
                     }
                     .font(AppTheme.schoolbell(18))
@@ -224,6 +226,7 @@ struct EditTaskView: View {
 
             HStack(spacing: 10) {
                 Button {
+                    HapticManager.selection()
                     value.wrappedValue = max(value.wrappedValue - 1, range.lowerBound)
                 } label: {
                     Image(systemName: "minus.circle.fill")
@@ -254,6 +257,7 @@ struct EditTaskView: View {
                 }
 
                 Button {
+                    HapticManager.selection()
                     value.wrappedValue = min(value.wrappedValue + 1, range.upperBound)
                 } label: {
                     Image(systemName: "plus.circle.fill")
