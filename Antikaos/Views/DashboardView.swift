@@ -56,35 +56,7 @@ struct DashboardView: View {
                 return $0.title < $1.title
             }
 
-        if !generatedToday.isEmpty {
-            return generatedToday
-        }
-
-        let startOfToday = calendar.startOfDay(for: currentDate)
-        let fallbackTasks = tasks
-            .filter { !$0.isCompleted && calendar.startOfDay(for: $0.deadlineDate) >= startOfToday }
-            .sorted {
-                if $0.deadlineDate != $1.deadlineDate {
-                    return $0.deadlineDate < $1.deadlineDate
-                }
-
-                return $0.updatedAt > $1.updatedAt
-            }
-        
-        let fallbackEntries = fallbackTasks.flatMap { task in
-            Array(0..<max(task.remainingSessions, 1)).map { sessionIndex in
-                TodayTodoEntry(
-                    id: "deadline-\(task.id.uuidString)-\(sessionIndex)",
-                    generatedTaskID: nil,
-                    parentTaskID: task.id,
-                    title: task.title,
-                    date: task.deadlineDate,
-                    isCompleted: false
-                )
-            }
-        }
-
-        return Array(fallbackEntries.prefix(3))
+        return generatedToday
     }
 
     private var todayDotStatuses: [Bool] {
@@ -535,35 +507,7 @@ private struct TodayTodoView: View {
                 return $0.title < $1.title
             }
 
-        if !generatedToday.isEmpty {
-            return generatedToday
-        }
-
-        let startOfToday = calendar.startOfDay(for: currentDate)
-        let fallbackTasks = deadlineTasks
-            .filter { !$0.isCompleted && calendar.startOfDay(for: $0.deadlineDate) >= startOfToday }
-            .sorted {
-                if $0.deadlineDate != $1.deadlineDate {
-                    return $0.deadlineDate < $1.deadlineDate
-                }
-
-                return $0.updatedAt > $1.updatedAt
-            }
-
-        let fallbackEntries = fallbackTasks.flatMap { task in
-            Array(0..<max(task.remainingSessions, 1)).map { sessionIndex in
-                TodayTodoEntry(
-                    id: "deadline-\(task.id.uuidString)-\(sessionIndex)",
-                    generatedTaskID: nil,
-                    parentTaskID: task.id,
-                    title: task.title,
-                    date: task.deadlineDate,
-                    isCompleted: false
-                )
-            }
-        }
-
-        return Array(fallbackEntries.prefix(3))
+        return generatedToday
     }
 
     private var didCompleteMission: Bool {

@@ -350,28 +350,34 @@ struct TaskManager {
         guard sessionCount > 0 else { return [] }
         guard !days.isEmpty else { return [] }
 
-        var sessionsPerDay: [Date: Int] = [:]
-        if sessionCount == 1 {
-            sessionsPerDay[days[0], default: 0] += 1
-        } else {
-            for index in 0..<sessionCount {
-                let rawIndex = Double(index) * Double(days.count - 1) / Double(max(sessionCount - 1, 1))
-                let day = days[Int(rawIndex.rounded())]
-                sessionsPerDay[day, default: 0] += 1
+        let uniqueSessionCount = min(sessionCount, days.count)
+        guard uniqueSessionCount > 0 else { return [] }
+
+        if uniqueSessionCount == 1 {
+            return scheduledDate(on: days[0], matchingTimeOf: task.deadlineDate, calendar: calendar).map { [$0] } ?? []
+        }
+
+        var selectedIndices: [Int] = []
+        for index in 0..<uniqueSessionCount {
+            let rawIndex = Double(index) * Double(days.count - 1) / Double(max(uniqueSessionCount - 1, 1))
+            var candidateIndex = Int(rawIndex.rounded())
+
+            while selectedIndices.contains(candidateIndex), candidateIndex + 1 < days.count {
+                candidateIndex += 1
+            }
+
+            while selectedIndices.contains(candidateIndex), candidateIndex - 1 >= 0 {
+                candidateIndex -= 1
+            }
+
+            if !selectedIndices.contains(candidateIndex) {
+                selectedIndices.append(candidateIndex)
             }
         }
 
-        return days.flatMap { day in
-            let count = sessionsPerDay[day, default: 0]
-            guard count > 0 else { return [Date]() }
-
-            return scheduledDates(
-                on: day,
-                count: count,
-                matchingTimeOf: task.deadlineDate,
-                calendar: calendar
-            )
-        }
+        return selectedIndices
+            .sorted()
+            .compactMap { scheduledDate(on: days[$0], matchingTimeOf: task.deadlineDate, calendar: calendar) }
     }
 
     private func scheduledDate(on day: Date, matchingTimeOf referenceDate: Date, calendar: Calendar) -> Date? {

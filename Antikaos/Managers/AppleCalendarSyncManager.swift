@@ -10,47 +10,90 @@ final class AppleCalendarSyncManager {
 
     private init() {}
 
+    private var hasEventAccess: Bool {
+        let status = EKEventStore.authorizationStatus(for: .event)
+        switch status {
+        case .authorized, .fullAccess, .writeOnly:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private var hasReminderAccess: Bool {
+        let status = EKEventStore.authorizationStatus(for: .reminder)
+        switch status {
+        case .authorized, .fullAccess, .writeOnly:
+            return true
+        default:
+            return false
+        }
+    }
+
     func sync(task: TaskItem, generatedTasks: [GeneratedTaskItem]) async {
         guard task.isAppleSyncEnabled else {
             removeAppleItems(for: task, generatedTasks: generatedTasks)
             return
         }
 
+        let eventAccessGranted: Bool
         do {
-            guard try await requestEventAccess(),
-                  try await requestReminderAccess(),
-                  let eventCalendar = try antikaosEventCalendar(),
-                  let reminderCalendar = try antikaosReminderCalendar() else {
-                return
+            eventAccessGranted = try await requestEventAccess()
+        } catch {
+            print("Failed to request Calendar access: \(error)")
+            eventAccessGranted = false
+        }
+
+        let reminderAccessGranted: Bool
+        do {
+            reminderAccessGranted = try await requestReminderAccess()
+        } catch {
+            print("Failed to request Reminders access: \(error)")
+            reminderAccessGranted = false
+        }
+
+        guard eventAccessGranted || reminderAccessGranted else {
+            return
+        }
+
+        do {
+            if eventAccessGranted,
+               let eventCalendar = try destinationEventCalendar() {
+                try upsertDeadlineEvent(for: task, in: eventCalendar)
             }
 
-            try upsertDeadlineEvent(for: task, in: eventCalendar)
-
-            for generatedTask in generatedTasks where generatedTask.parentTaskID == task.id {
-                try upsertReminder(for: generatedTask, in: reminderCalendar)
+            if reminderAccessGranted,
+               let reminderCalendar = try antikaosReminderCalendar() {
+                for generatedTask in generatedTasks where generatedTask.parentTaskID == task.id {
+                    try upsertReminder(for: generatedTask, in: reminderCalendar)
+                }
             }
         } catch {
-            assertionFailure("Failed to sync Apple Calendar/Reminders: \(error)")
+            print("Failed to sync Apple Calendar/Reminders: \(error)")
         }
     }
 
     func removeAppleItems(for task: TaskItem, generatedTasks: [GeneratedTaskItem]) {
-        if let identifier = task.appleCalendarEventIdentifier,
+        if hasEventAccess,
+           let identifier = task.appleCalendarEventIdentifier,
            let event = store.event(withIdentifier: identifier) {
             try? store.remove(event, span: .thisEvent, commit: false)
         }
 
         task.appleCalendarEventIdentifier = nil
 
-        for generatedTask in generatedTasks where generatedTask.parentTaskID == task.id {
-            removeReminder(identifier: generatedTask.appleReminderIdentifier)
-            generatedTask.appleReminderIdentifier = nil
+        if hasReminderAccess {
+            for generatedTask in generatedTasks where generatedTask.parentTaskID == task.id {
+                removeReminder(identifier: generatedTask.appleReminderIdentifier)
+                generatedTask.appleReminderIdentifier = nil
+            }
         }
 
         try? store.commit()
     }
 
     func markReminder(identifier: String?, isCompleted: Bool) {
+        guard hasReminderAccess else { return }
         guard let identifier,
               let reminder = store.calendarItem(withIdentifier: identifier) as? EKReminder else {
             return
@@ -63,6 +106,7 @@ final class AppleCalendarSyncManager {
 
     @discardableResult
     func syncReminderCompletions(tasks: [TaskItem], generatedTasks: [GeneratedTaskItem]) -> Bool {
+        guard hasReminderAccess else { return false }
         var didChange = false
 
         for generatedTask in generatedTasks {
@@ -96,7 +140,7 @@ final class AppleCalendarSyncManager {
         do {
             guard try await requestEventAccess() else { return [] }
 
-            let antikaosCalendarID = try antikaosEventCalendar()?.calendarIdentifier
+            let antikaosCalendarID = try destinationEventCalendar()?.calendarIdentifier
             let calendars = store.calendars(for: .event)
                 .filter { $0.calendarIdentifier != antikaosCalendarID }
             let predicate = store.predicateForEvents(withStart: startDate, end: endDate, calendars: calendars)
@@ -200,19 +244,12 @@ final class AppleCalendarSyncManager {
         try? store.remove(reminder, commit: false)
     }
 
-    private func antikaosEventCalendar() throws -> EKCalendar? {
-        if let calendar = store.calendars(for: .event).first(where: { $0.title == calendarName }) {
-            return calendar
+    private func destinationEventCalendar() throws -> EKCalendar? {
+        if let defaultCalendar = store.defaultCalendarForNewEvents {
+            return defaultCalendar
         }
 
-        let calendar = EKCalendar(for: .event, eventStore: store)
-        calendar.title = calendarName
-        calendar.source = store.defaultCalendarForNewEvents?.source ?? store.sources.first(where: { $0.sourceType == .local }) ?? store.sources.first
-
-        guard calendar.source != nil else { return nil }
-
-        try store.saveCalendar(calendar, commit: true)
-        return calendar
+        return store.calendars(for: .event).first
     }
 
     private func antikaosReminderCalendar() throws -> EKCalendar? {
@@ -233,6 +270,11 @@ final class AppleCalendarSyncManager {
     }
 
     private func requestEventAccess() async throws -> Bool {
+        if hasEventAccess { return true }
+
+        let status = EKEventStore.authorizationStatus(for: .event)
+        guard status == .notDetermined else { return false }
+
         if #available(iOS 17.0, *) {
             return try await store.requestFullAccessToEvents()
         }
@@ -249,6 +291,11 @@ final class AppleCalendarSyncManager {
     }
 
     private func requestReminderAccess() async throws -> Bool {
+        if hasReminderAccess { return true }
+
+        let status = EKEventStore.authorizationStatus(for: .reminder)
+        guard status == .notDetermined else { return false }
+
         if #available(iOS 17.0, *) {
             return try await store.requestFullAccessToReminders()
         }
