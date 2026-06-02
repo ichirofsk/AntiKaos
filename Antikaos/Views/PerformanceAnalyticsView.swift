@@ -84,7 +84,7 @@ struct PerformanceAnalyticsView: View {
                 .font(AppTheme.schoolbell(30))
                 .foregroundStyle(AppTheme.primaryText)
 
-            Text("Uma prévia de como a versão paga pode mostrar sua evolução, consistência e impacto no caos.")
+            Text("Uma prévia de como a versão paga pode mostrar sua evolução, consistência e impacto na sobrecarga.")
                 .font(AppTheme.schoolbell(16))
                 .foregroundStyle(AppTheme.secondaryText)
 
@@ -108,7 +108,7 @@ struct PerformanceAnalyticsView: View {
 
             HStack(spacing: 0) {
                 analyticsMetric(
-                    title: "Caos médio",
+                    title: "Sobrecarga média",
                     value: "\(weeklyChaosAverage)/100",
                     tint: ChaosLevel(value: weeklyChaosAverage).tint
                 )
@@ -137,7 +137,7 @@ struct PerformanceAnalyticsView: View {
     private var chartCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Evolução do caos")
+                Text("Evolução da sobrecarga")
                     .font(AppTheme.schoolbell(22))
                     .foregroundStyle(AppTheme.primaryText)
 
@@ -185,7 +185,7 @@ struct PerformanceAnalyticsView: View {
                 .foregroundStyle(AppTheme.primaryText)
 
             insightRow(
-                title: "Picos de caos",
+                title: "Picos de sobrecarga",
                 value: AppStrings.localized(ChaosLevel(value: weeklyChaosAverage).titleKey),
                 tint: ChaosLevel(value: weeklyChaosAverage).tint
             )

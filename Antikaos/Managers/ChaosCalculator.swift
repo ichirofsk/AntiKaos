@@ -25,7 +25,7 @@ enum ChaosCalculator {
     }
 
     static func totalChaos(for tasks: [TaskItem], asOf date: Date = .now) -> Int {
-        let activeTasks = tasks.filter { !$0.isCompleted && !$0.isPastDeadline && $0.remainingSessions > 0 }
+        let activeTasks = activeTasksForOverload(from: tasks, asOf: date)
         guard !activeTasks.isEmpty else { return 0 }
 
         let totalChaos = activeTasks.reduce(0) { $0 + Double(chaosScore(for: $1, asOf: date)) }
@@ -33,7 +33,7 @@ enum ChaosCalculator {
     }
 
     static func realChaos(for tasks: [TaskItem], asOf date: Date = .now) -> Int {
-        let activeTasks = tasks.filter { !$0.isCompleted && !$0.isPastDeadline && $0.remainingSessions > 0 }
+        let activeTasks = activeTasksForOverload(from: tasks, asOf: date)
         guard !activeTasks.isEmpty else { return 0 }
 
         let cappedDeadlineCount = Double(min(activeTasks.count, 4))
@@ -47,8 +47,50 @@ enum ChaosCalculator {
         realChaos(for: tasks, asOf: date)
     }
 
+    static func activeTasksForOverload(from tasks: [TaskItem], asOf date: Date = .now) -> [TaskItem] {
+        tasks.filter { isActiveForOverload($0, in: tasks, asOf: date) }
+    }
+
     private static func clamp(_ value: Double, lower: Double, upper: Double) -> Double {
         min(max(value, lower), upper)
+    }
+
+    private static func isActiveForOverload(_ task: TaskItem, in tasks: [TaskItem], asOf date: Date) -> Bool {
+        guard !task.isCompleted,
+              task.deadlineDate > date,
+              task.remainingSessions > 0 else {
+            return false
+        }
+
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: date)
+
+        switch task.dedicationStartMode {
+        case .today:
+            return true
+
+        case .tomorrow:
+            let startDate = task.dedicationStartDate
+                ?? calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: task.createdAt))
+
+            guard let tomorrow = startDate else {
+                return true
+            }
+
+            return today >= calendar.startOfDay(for: tomorrow)
+
+        case .specificDate:
+            guard let dedicationStartDate = task.dedicationStartDate else { return true }
+            return today >= calendar.startOfDay(for: dedicationStartDate)
+
+        case .afterDeadline:
+            guard let dependencyID = task.dedicationDependencyTaskID else { return false }
+            guard let dependency = tasks.first(where: { $0.id == dependencyID }) else {
+                return true
+            }
+
+            return dependency.isCompleted
+        }
     }
 
     private static func daysUntilDeadline(for task: TaskItem, asOf date: Date) -> Int {

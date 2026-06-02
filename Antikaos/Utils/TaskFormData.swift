@@ -9,6 +9,9 @@ struct TaskFormData {
     let completedSessions: Int
     let dedicationMinutes: Int
     let deadlineDate: Date
+    let dedicationStartMode: DedicationStartMode
+    let dedicationStartDate: Date?
+    let dedicationDependencyTaskID: UUID?
     let notes: String
     let shouldSyncWithApple: Bool
 
@@ -21,6 +24,9 @@ struct TaskFormData {
         completedSessions: Int,
         dedicationMinutes: Int,
         deadlineDate: Date,
+        dedicationStartMode: DedicationStartMode = .today,
+        dedicationStartDate: Date? = nil,
+        dedicationDependencyTaskID: UUID? = nil,
         notes: String,
         shouldSyncWithApple: Bool = false
     ) {
@@ -32,6 +38,9 @@ struct TaskFormData {
         self.completedSessions = completedSessions
         self.dedicationMinutes = dedicationMinutes
         self.deadlineDate = deadlineDate
+        self.dedicationStartMode = dedicationStartMode
+        self.dedicationStartDate = dedicationStartDate
+        self.dedicationDependencyTaskID = dedicationDependencyTaskID
         self.notes = notes
         self.shouldSyncWithApple = shouldSyncWithApple
     }

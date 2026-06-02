@@ -1,7 +1,9 @@
 import SwiftUI
+import SwiftData
 
 struct EditTaskView: View {
     @Environment(\.dismiss) private var dismiss
+    @Query(sort: \TaskItem.deadlineDate, order: .forward) private var existingTasks: [TaskItem]
 
     private let task: TaskItem?
     private let onDelete: (() -> Void)?
@@ -17,6 +19,9 @@ struct EditTaskView: View {
     @State private var deadlineDate: Date
     @State private var draftDeadlineDate: Date
     @State private var isEditingDeadlineDate = false
+    @State private var dedicationStartMode: DedicationStartMode
+    @State private var dedicationStartDate: Date
+    @State private var dedicationDependencyTaskID: UUID?
     @State private var notes: String
     @State private var draftNotes: String
     @State private var isEditingNotes = false
@@ -38,6 +43,9 @@ struct EditTaskView: View {
         _dedicationMinutes = State(initialValue: max(task?.dedicationMinutes ?? 30, 0))
         _deadlineDate = State(initialValue: initialDeadlineDate)
         _draftDeadlineDate = State(initialValue: initialDeadlineDate)
+        _dedicationStartMode = State(initialValue: task?.dedicationStartMode ?? .today)
+        _dedicationStartDate = State(initialValue: task?.dedicationStartDate ?? .now)
+        _dedicationDependencyTaskID = State(initialValue: task?.dedicationDependencyTaskID)
         _notes = State(initialValue: initialNotes)
         _draftNotes = State(initialValue: initialNotes)
         _shouldSyncWithApple = State(initialValue: task?.isAppleSyncEnabled ?? false)
@@ -56,14 +64,49 @@ struct EditTaskView: View {
             && deadlineKind != nil
             && (deadlineKind != .continuous || !recurrences.isEmpty)
             && (deadlineKind != .punctual || totalSessions <= maxPunctualSessions)
+            && dedicationStartIsValid
     }
 
     private var maxPunctualSessions: Int {
         let calendar = Calendar.current
-        let startOfToday = calendar.startOfDay(for: .now)
+        let startOfToday = calendar.startOfDay(for: planningStartDate)
         let deadlineDay = calendar.startOfDay(for: deadlineDate)
         let daysBeforeDeadline = calendar.dateComponents([.day], from: startOfToday, to: deadlineDay).day ?? 0
         return max(daysBeforeDeadline * 8, 24)
+    }
+
+    private var availableDependencyTasks: [TaskItem] {
+        existingTasks.filter { existingTask in
+            existingTask.id != task?.id && !existingTask.isCompleted
+        }
+    }
+
+    private var planningStartDate: Date {
+        let calendar = Calendar.current
+
+        switch dedicationStartMode {
+        case .today, .afterDeadline:
+            return .now
+        case .tomorrow:
+            return calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: .now)) ?? .now
+        case .specificDate:
+            return dedicationStartDate
+        }
+    }
+
+    private var dedicationStartIsValid: Bool {
+        let calendar = Calendar.current
+        let startDay = calendar.startOfDay(for: planningStartDate)
+        let deadlineDay = calendar.startOfDay(for: deadlineDate)
+
+        switch dedicationStartMode {
+        case .today, .tomorrow:
+            return startDay < deadlineDay
+        case .afterDeadline:
+            return dedicationDependencyTaskID != nil
+        case .specificDate:
+            return startDay < deadlineDay
+        }
     }
 
     var body: some View {
@@ -168,6 +211,10 @@ struct EditTaskView: View {
 
                         inputCard {
                             deadlineDateSection
+                        }
+
+                        inputCard {
+                            dedicationStartSection
                         }
 
                         inputCard {
@@ -403,6 +450,147 @@ struct EditTaskView: View {
         )
     }
 
+    private var dedicationStartSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Começar a me dedicar:")
+                .font(AppTheme.schoolbell(16))
+                .foregroundStyle(AppTheme.secondaryText)
+
+            VStack(spacing: 10) {
+                dedicationStartButton(.today, title: "Hoje")
+                dedicationStartButton(.tomorrow, title: "Amanhã")
+
+                if availableDependencyTasks.isEmpty {
+                    dedicationStartButton(.afterDeadline, title: "Após outra deadline ser concluída")
+                        .disabled(true)
+                        .opacity(0.45)
+                } else {
+                    VStack(spacing: 8) {
+                        ForEach(availableDependencyTasks) { dependencyTask in
+                            dedicationDependencyButton(dependencyTask)
+                        }
+                    }
+                }
+
+                dedicationStartButton(.specificDate, title: "Data específica")
+            }
+
+            if dedicationStartMode == .specificDate {
+                DatePicker(
+                    "Data específica",
+                    selection: dedicationStartDateBinding,
+                    displayedComponents: [.date]
+                )
+                .datePickerStyle(.graphical)
+                .foregroundStyle(AppTheme.primaryText)
+                .environment(\.colorScheme, .light)
+                .tint(AppTheme.primaryChaos)
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            }
+
+            if !dedicationStartIsValid {
+                Text(dedicationStartValidationMessage)
+                    .font(AppTheme.schoolbell(14))
+                    .foregroundStyle(AppTheme.critical)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func dedicationStartButton(_ mode: DedicationStartMode, title: String) -> some View {
+        let isSelected = dedicationStartMode == mode && mode != .afterDeadline
+
+        return Button {
+            HapticManager.selection()
+            withAnimation(.snappy(duration: 0.22)) {
+                dedicationStartMode = mode
+                if mode != .afterDeadline {
+                    dedicationDependencyTaskID = nil
+                }
+                totalSessions = min(totalSessions, maxPunctualSessions)
+                completedSessions = min(completedSessions, totalSessions)
+            }
+        } label: {
+            HStack {
+                Text(title)
+                    .font(AppTheme.schoolbell(17))
+                    .foregroundStyle(isSelected ? Color.white : AppTheme.primaryText)
+
+                Spacer()
+
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color.white)
+                }
+            }
+            .padding(.horizontal, 14)
+            .frame(minHeight: 44)
+            .background(
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .fill(isSelected ? AppTheme.primaryChaos : AppTheme.secondarySurface)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func dedicationDependencyButton(_ dependencyTask: TaskItem) -> some View {
+        let isSelected = dedicationStartMode == .afterDeadline && dedicationDependencyTaskID == dependencyTask.id
+
+        return Button {
+            HapticManager.selection()
+            withAnimation(.snappy(duration: 0.22)) {
+                dedicationStartMode = .afterDeadline
+                dedicationDependencyTaskID = dependencyTask.id
+                totalSessions = min(totalSessions, maxPunctualSessions)
+                completedSessions = min(completedSessions, totalSessions)
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Text("Após a deadline \(dependencyTask.title) ser concluída")
+                    .font(AppTheme.schoolbell(16))
+                    .foregroundStyle(isSelected ? Color.white : AppTheme.primaryText)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.82)
+
+                Spacer()
+
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color.white)
+                }
+            }
+            .padding(.horizontal, 14)
+            .frame(minHeight: 46)
+            .background(
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .fill(isSelected ? AppTheme.primaryChaos : AppTheme.secondarySurface)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var dedicationStartDateBinding: Binding<Date> {
+        Binding(
+            get: { dedicationStartDate },
+            set: { newDate in
+                dedicationStartDate = Calendar.current.startOfDay(for: newDate)
+                totalSessions = min(totalSessions, maxPunctualSessions)
+                completedSessions = min(completedSessions, totalSessions)
+            }
+        )
+    }
+
+    private var dedicationStartValidationMessage: String {
+        switch dedicationStartMode {
+        case .afterDeadline:
+            return "Escolha uma deadline para liberar o início da dedicação."
+        default:
+            return "Escolha uma data anterior ao dia da deadline."
+        }
+    }
+
     private var notesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
@@ -566,6 +754,9 @@ struct EditTaskView: View {
             completedSessions: deadlineKind == .continuous ? 0 : normalizedCompletedSessions,
             dedicationMinutes: deadlineKind == .continuous ? 0 : dedicationMinutes,
             deadlineDate: normalizedDeadlineDate,
+            dedicationStartMode: dedicationStartMode,
+            dedicationStartDate: normalizedDedicationStartDate,
+            dedicationDependencyTaskID: dedicationStartMode == .afterDeadline ? dedicationDependencyTaskID : nil,
             notes: notes,
             shouldSyncWithApple: shouldSyncWithApple
         )
@@ -577,6 +768,19 @@ struct EditTaskView: View {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: deadlineDate)
         return calendar.date(from: components) ?? deadlineDate
+    }
+
+    private var normalizedDedicationStartDate: Date? {
+        let calendar = Calendar.current
+
+        switch dedicationStartMode {
+        case .tomorrow:
+            return calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: .now))
+        case .specificDate:
+            return calendar.startOfDay(for: dedicationStartDate)
+        case .today, .afterDeadline:
+            return nil
+        }
     }
 
     private var deadlineDateDisplay: String {

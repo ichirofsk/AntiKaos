@@ -22,8 +22,7 @@ struct WidgetDeadlinePayload: Codable {
 enum WidgetSyncManager {
     static func syncChaos(from tasks: [TaskItem]) {
         let chaosValue = ChaosCalculator.overallChaos(for: tasks)
-        let upcomingDeadlines = tasks
-            .filter { !$0.isCompleted && !$0.isPastDeadline && $0.remainingSessions > 0 }
+        let upcomingDeadlines = ChaosCalculator.activeTasksForOverload(from: tasks)
             .sorted { lhs, rhs in
                 if lhs.deadlineDate != rhs.deadlineDate {
                     return lhs.deadlineDate < rhs.deadlineDate

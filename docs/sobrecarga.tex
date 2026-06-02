@@ -1,0 +1,196 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{geometry}
+\usepackage{enumitem}
+
+\geometry{margin=2.5cm}
+\setlength{\parskip}{0.7em}
+\setlength{\parindent}{0pt}
+
+\title{Cálculo da Métrica de Sobrecarga}
+\author{Antikaos}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Ideia geral}
+
+A métrica \textbf{Sobrecarga} mede o peso das deadlines ativas sobre o usuário. Uma deadline só é considerada ativa quando o momento definido em \textit{Começar a me dedicar} já foi alcançado. Deadlines futuras existem no sistema, mas não entram no cálculo até serem ativadas.
+
+\section{Conjunto de deadlines ativas}
+
+Seja $D$ o conjunto de todas as deadlines cadastradas. O conjunto de deadlines ativas no instante $t$ é:
+
+\[
+D_a(t) =
+\left\{
+d_i \in D \mid
+\neg C_i
+\land T_i > t
+\land R_i > 0
+\land A_i(t)
+\right\}
+\]
+
+\subsection*{Legenda}
+
+\begin{description}[leftmargin=2.2cm]
+    \item[$d_i$] Deadline $i$.
+    \item[$C_i$] Indicador de conclusão da deadline. Vale verdadeiro se a deadline já foi concluída.
+    \item[$T_i$] Data e hora final da deadline $i$.
+    \item[$R_i$] Quantidade de sessões/tarefas restantes da deadline $i$.
+    \item[$A_i(t)$] Indicador de ativação da deadline no instante $t$.
+\end{description}
+
+\section{Regra de ativação}
+
+A função $A_i(t)$ depende da opção escolhida em \textit{Começar a me dedicar}:
+
+\[
+A_i(t) =
+\begin{cases}
+1, & \text{se o modo for ``hoje''} \\
+1, & \text{se o modo for ``amanhã'' e } \operatorname{dia}(t) \geq \operatorname{dia}(S_i) \\
+1, & \text{se o modo for ``data específica'' e } \operatorname{dia}(t) \geq \operatorname{dia}(S_i) \\
+1, & \text{se o modo for ``após deadline'' e a deadline dependente estiver concluída} \\
+0, & \text{caso contrário}
+\end{cases}
+\]
+
+\subsection*{Legenda}
+
+\begin{description}[leftmargin=2.2cm]
+    \item[$S_i$] Data de início da dedicação da deadline $i$, quando aplicável.
+    \item[$\operatorname{dia}(x)$] Início do dia da data $x$, ignorando hora/minuto/segundo.
+\end{description}
+
+\section{Sobrecarga individual}
+
+Para cada deadline ativa $d_i \in D_a(t)$, calcula-se a sobrecarga individual:
+
+\[
+s_i =
+\operatorname{clip}_{[0,100]}
+\left(
+\operatorname{round}
+\left[
+q_i \cdot
+\left(
+1 - p_i - b_i
+\right)
++
+\frac{a_i}{20}
+\right]
+\right)
+\]
+
+O progresso é:
+
+\[
+p_i = \frac{c_i}{n_i}
+\]
+
+O atraso usado na fórmula é:
+
+\[
+a_i = \max(r_i - \Delta_i, 0)
+\]
+
+O bônus de progresso sem atraso é:
+
+\[
+b_i =
+\min
+\left(
+\frac{p_i \cdot k_i}{3},
+0.2
+\right)
+\]
+
+com:
+
+\[
+k_i =
+\begin{cases}
+1, & \text{se } a_i = 0 \\
+0, & \text{se } a_i > 0
+\end{cases}
+\]
+
+\subsection*{Legenda}
+
+\begin{description}[leftmargin=2.2cm]
+    \item[$s_i$] Sobrecarga individual da deadline $i$, arredondada e limitada entre $0$ e $100$.
+    \item[$q_i$] Dificuldade percebida da deadline $i$, informada pelo usuário, entre $0$ e $100$.
+    \item[$p_i$] Progresso da deadline $i$.
+    \item[$c_i$] Quantidade de sessões/tarefas concluídas da deadline $i$.
+    \item[$n_i$] Quantidade total de sessões/tarefas da deadline $i$.
+    \item[$r_i$] Quantidade de sessões/tarefas restantes da deadline $i$.
+    \item[$\Delta_i$] Quantidade de dias restantes até a data final da deadline $i$.
+    \item[$a_i$] Atraso estimado da deadline $i$.
+    \item[$b_i$] Bônus por progresso quando não há atraso, limitado a $0.2$.
+    \item[$k_i$] Indicador de ausência de atraso.
+\end{description}
+
+\section{Sobrecarga total}
+
+A primeira agregação é a média das sobrecargas individuais das deadlines ativas:
+
+\[
+S_T =
+\begin{cases}
+0, & \text{se } |D_a(t)| = 0 \\
+\operatorname{round}
+\left(
+\frac{1}{|D_a(t)|}
+\sum_{d_i \in D_a(t)} s_i
+\right), & \text{caso contrário}
+\end{cases}
+\]
+
+\section{Sobrecarga exibida}
+
+A métrica exibida aplica um fator de ponderação pela quantidade de deadlines ativas. Seja:
+
+\[
+m = \min(|D_a(t)|, 4)
+\]
+
+Então:
+
+\[
+S =
+\begin{cases}
+0, & \text{se } |D_a(t)| = 0 \\
+\operatorname{clip}_{[0,100]}
+\left(
+\operatorname{round}
+\left[
+S_T
+\cdot
+\left(
+2 - \frac{\sqrt{m+1}}{m}
+\right)
+\right]
+\right), & \text{caso contrário}
+\end{cases}
+\]
+
+\subsection*{Legenda}
+
+\begin{description}[leftmargin=2.2cm]
+    \item[$S_T$] Sobrecarga total média antes da ponderação por quantidade de deadlines.
+    \item[$S$] Sobrecarga final exibida no app.
+    \item[$|D_a(t)|$] Número de deadlines ativas no instante $t$.
+    \item[$m$] Número de deadlines ativas limitado superiormente a $4$.
+    \item[$\operatorname{clip}_{[0,100]}(x)$] Função que limita $x$ ao intervalo de $0$ a $100$.
+\end{description}
+
+\end{document}

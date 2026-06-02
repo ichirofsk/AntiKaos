@@ -15,6 +15,7 @@ struct TasksView: View {
     @State private var isShowingLegend = false
     @State private var premiumPaywallContext: PremiumPaywallContext?
     @State private var isShowingWidgetInstructions = false
+    @State private var isOverdueTasksExpanded = false
 
     private let freeDeadlineLimit = 3
 
@@ -22,8 +23,18 @@ struct TasksView: View {
         tasks
             .filter { !$0.isCompleted && !$0.isPastDeadline && $0.remainingSessions > 0 }
             .sorted { lhs, rhs in
+                let lhsWeight = DeadlinePriority.weight(for: lhs)
+                let rhsWeight = DeadlinePriority.weight(for: rhs)
+                if lhsWeight != rhsWeight {
+                    return lhsWeight > rhsWeight
+                }
+
                 if lhs.deadlineDate != rhs.deadlineDate {
                     return lhs.deadlineDate < rhs.deadlineDate
+                }
+
+                if lhs.perceivedDifficulty != rhs.perceivedDifficulty {
+                    return lhs.perceivedDifficulty > rhs.perceivedDifficulty
                 }
 
                 return lhs.updatedAt > rhs.updatedAt
@@ -31,17 +42,15 @@ struct TasksView: View {
     }
 
     private var filteredTasks: [TaskItem] {
-        let calendar = Calendar.current
-        let now = Date()
-
         switch selectedFilter {
         case .all:
             return pendingTasks
-        case .thisWeek:
-            guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: now) else {
-                return pendingTasks
-            }
-            return pendingTasks.filter { weekInterval.contains($0.deadlineDate) }
+        case .onTrack:
+            return pendingTasks.filter { isActiveDeadline($0) && !isDelayed($0) }
+        case .delayed:
+            return pendingTasks.filter { isActiveDeadline($0) && isDelayed($0) }
+        case .future:
+            return pendingTasks.filter { !isActiveDeadline($0) }
         }
     }
 
@@ -54,6 +63,27 @@ struct TasksView: View {
             let deadline = calendar.startOfDay(for: task.deadlineDate)
             return deadline >= start && deadline <= end
         }.count
+    }
+
+    private var overdueGeneratedTasks: [GeneratedTaskItem] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        let activeTaskIDs = Set(ChaosCalculator.activeTasksForOverload(from: pendingTasks).map(\.id))
+
+        return generatedTasks
+            .filter { generatedTask in
+                activeTaskIDs.contains(generatedTask.parentTaskID)
+                    && !generatedTask.isCompleted
+                    && !generatedTask.isDelayDismissed
+                    && calendar.startOfDay(for: generatedTask.scheduledDate) < today
+            }
+            .sorted { lhs, rhs in
+                if lhs.scheduledDate != rhs.scheduledDate {
+                    return lhs.scheduledDate > rhs.scheduledDate
+                }
+
+                return lhs.createdAt > rhs.createdAt
+            }
     }
 
     private var impactLevel: ChaosLevel {
@@ -76,6 +106,7 @@ struct TasksView: View {
                     VStack(alignment: .leading, spacing: isVeryCompact ? 12 : (isCompact ? 14 : 18)) {
                         header(isCompact: isCompact, isVeryCompact: isVeryCompact)
                         summaryCard(isCompact: isCompact, isVeryCompact: isVeryCompact)
+                        overdueTasksCard(isCompact: isCompact, isVeryCompact: isVeryCompact)
                         filterRow(isCompact: isCompact, isVeryCompact: isVeryCompact)
                         tasksSection(isCompact: isCompact, isVeryCompact: isVeryCompact)
                     }
@@ -241,7 +272,7 @@ struct TasksView: View {
                         .lineLimit(2)
                         .multilineTextAlignment(.center)
 
-                    Text("Impacto no caos")
+                    Text("Impacto na sobrecarga")
                         .font(AppTheme.schoolbell(isVeryCompact ? 11 : (isCompact ? 12 : 16)))
                         .foregroundStyle(AppTheme.primaryText)
                         .multilineTextAlignment(.center)
@@ -259,6 +290,135 @@ struct TasksView: View {
                 )
         )
         .shadow(color: Color.white.opacity(0.35), radius: 18, x: 0, y: 6)
+    }
+
+    private func overdueTasksCard(isCompact: Bool, isVeryCompact: Bool) -> some View {
+        let overdueTasks = overdueGeneratedTasks
+        let title = overdueTasks.isEmpty ? "Nenhuma task em atraso" : "\(overdueTasks.count) tasks em atraso"
+        let tone = AppTheme.supportGreen
+
+        return VStack(alignment: .leading, spacing: isVeryCompact ? 9 : 12) {
+            Button {
+                HapticManager.selection()
+                withAnimation(.snappy(duration: 0.24)) {
+                    isOverdueTasksExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Tasks atrasadas")
+                            .font(AppTheme.schoolbell(isVeryCompact ? 18 : (isCompact ? 20 : 22)))
+                            .foregroundStyle(AppTheme.primaryText)
+                            .lineLimit(1)
+
+                        Text(title)
+                            .font(AppTheme.schoolbell(isVeryCompact ? 13 : (isCompact ? 14 : 16)))
+                            .foregroundStyle(tone)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
+                    }
+
+                    Spacer(minLength: 10)
+
+                    Image(systemName: isOverdueTasksExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: isVeryCompact ? 13 : 15, weight: .bold))
+                        .foregroundStyle(tone)
+                        .frame(width: isVeryCompact ? 30 : 34, height: isVeryCompact ? 30 : 34)
+                        .background(Circle().fill(Color.white.opacity(0.74)))
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isOverdueTasksExpanded {
+                if overdueTasks.isEmpty {
+                    Text("Nenhuma task em atraso")
+                        .font(AppTheme.schoolbell(isVeryCompact ? 13 : 15))
+                        .foregroundStyle(AppTheme.secondaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 2)
+                } else {
+                    VStack(spacing: isVeryCompact ? 8 : 10) {
+                        ForEach(overdueTasks) { generatedTask in
+                            overdueTaskRow(generatedTask, isCompact: isCompact, isVeryCompact: isVeryCompact)
+                        }
+                    }
+                    .padding(.top, 2)
+                }
+            }
+        }
+        .padding(isVeryCompact ? 11 : (isCompact ? 13 : 15))
+        .background(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(tone.opacity(0.12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                        .opacity(0.52)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .stroke(tone.opacity(0.24), lineWidth: 1)
+                )
+        )
+        .shadow(color: tone.opacity(0.08), radius: 12, x: 0, y: 5)
+    }
+
+    private func overdueTaskRow(_ generatedTask: GeneratedTaskItem, isCompact: Bool, isVeryCompact: Bool) -> some View {
+        HStack(alignment: .center, spacing: isVeryCompact ? 8 : 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(generatedTask.title)
+                    .font(AppTheme.schoolbell(isVeryCompact ? 13 : (isCompact ? 14 : 16)))
+                    .foregroundStyle(AppTheme.primaryText)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.78)
+
+                Text("\(overdueTaskDateLabel(for: generatedTask.scheduledDate)) · \(parentDeadlineTitle(for: generatedTask))")
+                    .font(AppTheme.schoolbell(isVeryCompact ? 10 : 12))
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+            }
+
+            Spacer(minLength: 8)
+
+            Button {
+                HapticManager.notify(.success)
+                withAnimation(.snappy) {
+                    TaskManager(modelContext: modelContext).completeGeneratedTask(id: generatedTask.id)
+                }
+            } label: {
+                Image(systemName: "checkmark")
+                    .font(.system(size: isVeryCompact ? 12 : 13, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: isVeryCompact ? 30 : 34, height: isVeryCompact ? 30 : 34)
+                    .background(Circle().fill(AppTheme.supportGreen))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Marcar task como compensada")
+
+            Button {
+                HapticManager.impact(.light)
+                withAnimation(.snappy) {
+                    generatedTask.isDelayDismissed = true
+                    try? modelContext.save()
+                }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: isVeryCompact ? 11 : 12, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: isVeryCompact ? 30 : 34, height: isVeryCompact ? 30 : 34)
+                    .background(Circle().fill(AppTheme.critical))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Descartar task atrasada deste card")
+        }
+        .padding(.horizontal, isVeryCompact ? 10 : 12)
+        .padding(.vertical, isVeryCompact ? 8 : 10)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.white.opacity(0.72))
+        )
     }
 
     private func summaryDivider(isVeryCompact: Bool) -> some View {
@@ -369,13 +529,19 @@ struct TasksView: View {
     private func deadlineCard(_ task: TaskItem, isCompact: Bool, isVeryCompact: Bool) -> some View {
         let tone = tone(for: task)
         let textTone = readableTone(for: task)
+        let isActive = isActiveDeadline(task)
+        let isDelayed = isActive && isDelayed(task)
+        let statusTone = isActive ? delayStatusTone(isDelayed: isDelayed) : futureStatusTone
         let progress = min(max(task.progress, 0), 1)
         let sessionsProgressText = "\(task.completedSessions)/\(max(task.tasksQuantity, 1))"
         let difficultyValue = "Dificuldade \(task.perceivedDifficulty)"
         let difficultyText = difficultyLabel(for: task)
         let dateLabel = deadlineDateLabel(for: task)
-        let cardHeight = isVeryCompact ? 126.0 : 134.0
+        let cardHeight = isActive ? (isVeryCompact ? 126.0 : 134.0) : (isVeryCompact ? 138.0 : 146.0)
         let dateWidth = isVeryCompact ? 90.0 : 98.0
+        let horizontalPadding = isVeryCompact ? 14.0 : 16.0
+        let columnSpacing = isVeryCompact ? 10.0 : 14.0
+        let leftPanelWidth = dateWidth + horizontalPadding + columnSpacing + 0.5
 
         let cardContent = HStack(alignment: .center, spacing: isVeryCompact ? 10 : 14) {
             HStack(alignment: .center, spacing: isVeryCompact ? 10 : 14) {
@@ -397,6 +563,10 @@ struct TasksView: View {
                     difficultyText: difficultyText,
                     progress: progress,
                     sessionsProgressText: sessionsProgressText,
+                    activationText: isActive ? nil : activationText(for: task),
+                    isDelayed: isDelayed,
+                    isActive: isActive,
+                    statusTone: statusTone,
                     tone: tone,
                     textTone: textTone,
                     isVeryCompact: isVeryCompact
@@ -404,12 +574,14 @@ struct TasksView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .layoutPriority(1)
             }
-            .padding(.horizontal, isVeryCompact ? 14 : 16)
+            .padding(.horizontal, horizontalPadding)
         }
         .frame(maxWidth: .infinity, minHeight: cardHeight, maxHeight: cardHeight)
-        .background(deadlineCardBackground(tone: tone))
+        .background(deadlineCardBackground(difficultyTone: tone, statusTone: statusTone, splitWidth: leftPanelWidth))
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .shadow(color: tone.opacity(0.06), radius: 12, x: 0, y: 5)
+        .shadow(color: Color.white.opacity(0.62), radius: 2, x: -1, y: -1)
+        .shadow(color: statusTone.opacity(0.18), radius: 24, x: 0, y: 14)
+        .shadow(color: Color.black.opacity(0.08), radius: 18, x: 0, y: 10)
         .contentShape(Rectangle())
 
         return SwipeToDeleteDeadlineCard(
@@ -455,16 +627,28 @@ struct TasksView: View {
         difficultyText: String,
         progress: Double,
         sessionsProgressText: String,
+        activationText: String?,
+        isDelayed: Bool,
+        isActive: Bool,
+        statusTone: Color,
         tone: Color,
         textTone: Color,
         isVeryCompact: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: isVeryCompact ? 5 : 6) {
-            Text(verbatim: title)
-                .font(AppTheme.schoolbell(isVeryCompact ? 17 : 20))
-                .foregroundStyle(AppTheme.primaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
+            HStack(alignment: .top, spacing: 8) {
+                Text(verbatim: title)
+                    .font(AppTheme.schoolbell(isVeryCompact ? 17 : 20))
+                    .foregroundStyle(AppTheme.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+
+                Spacer(minLength: 4)
+
+                if isActive {
+                    deadlineDelayTag(isDelayed: isDelayed, tone: statusTone, isVeryCompact: isVeryCompact)
+                }
+            }
 
             Text(verbatim: difficultyText)
                 .font(AppTheme.schoolbell(isVeryCompact ? 13 : 15))
@@ -475,11 +659,19 @@ struct TasksView: View {
             deadlineProgressRow(
                 progress: progress,
                 sessionsProgressText: sessionsProgressText,
-                tone: tone,
+                tone: statusTone,
                 isVeryCompact: isVeryCompact
             )
             .padding(.top, 2)
             .animation(.snappy, value: progress)
+
+            if let activationText {
+                Text(activationText)
+                    .font(AppTheme.schoolbell(isVeryCompact ? 11 : 13))
+                    .foregroundStyle(statusTone)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+            }
         }
     }
 
@@ -518,17 +710,78 @@ struct TasksView: View {
         }
     }
 
-    private func deadlineCardBackground(tone: Color) -> some View {
-        RoundedRectangle(cornerRadius: 22, style: .continuous)
-            .fill(.ultraThinMaterial)
-            .overlay(
+    private func deadlineCardBackground(difficultyTone: Color, statusTone: Color, splitWidth: CGFloat) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(.ultraThinMaterial)
+
+            HStack(spacing: 0) {
+                LinearGradient(
+                    colors: [
+                        difficultyTone.opacity(0.34),
+                        difficultyTone.opacity(0.16),
+                        Color.white.opacity(0.16)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .frame(width: splitWidth)
+
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.30),
+                        statusTone.opacity(0.18),
+                        statusTone.opacity(0.10)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.46),
+                            Color.white.opacity(0.12),
+                            Color.white.opacity(0.03)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .blendMode(.screen)
+
+            VStack(spacing: 0) {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(tone.opacity(0.10))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(tone.opacity(0.16), lineWidth: 1)
-            )
+                    .fill(Color.white.opacity(0.34))
+                    .frame(height: 1.5)
+                    .padding(.horizontal, 18)
+                    .padding(.top, 1)
+
+                Spacer()
+            }
+
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.82),
+                            statusTone.opacity(0.22),
+                            Color.black.opacity(0.06)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.1
+                )
+
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color.white.opacity(0.18), lineWidth: 3)
+                .blur(radius: 1.2)
+                .padding(1.5)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
     private func legendOverlay(isCompact: Bool, isVeryCompact: Bool) -> some View {
@@ -561,7 +814,7 @@ struct TasksView: View {
 
                 legendRow(color: AppTheme.supportGreen, title: "Baixa", message: "Deadline mais calma.", isCompact: isCompact, isVeryCompact: isVeryCompact)
                 legendRow(color: Color(red: 0.88, green: 0.72, blue: 0.21), title: "Média", message: "Pede atenção.", isCompact: isCompact, isVeryCompact: isVeryCompact)
-                legendRow(color: AppTheme.primaryChaos, title: "Alta", message: "Impacto maior no caos.", isCompact: isCompact, isVeryCompact: isVeryCompact)
+                legendRow(color: AppTheme.primaryChaos, title: "Alta", message: "Impacto maior na sobrecarga.", isCompact: isCompact, isVeryCompact: isVeryCompact)
                 legendRow(color: AppTheme.critical, title: "Crítica", message: "Muito apertada.", isCompact: isCompact, isVeryCompact: isVeryCompact)
             }
             .padding(22)
@@ -603,6 +856,17 @@ struct TasksView: View {
         return formatter.string(from: task.deadlineDate)
     }
 
+    private func overdueTaskDateLabel(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        formatter.setLocalizedDateFormatFromTemplate("dd MMM")
+        return formatter.string(from: date)
+    }
+
+    private func parentDeadlineTitle(for generatedTask: GeneratedTaskItem) -> String {
+        tasks.first(where: { $0.id == generatedTask.parentTaskID })?.title ?? "Deadline"
+    }
+
     private func tone(for task: TaskItem) -> Color {
         switch task.perceivedDifficulty {
         case 0...30:
@@ -642,6 +906,73 @@ struct TasksView: View {
         }
     }
 
+    private func isDelayed(_ task: TaskItem) -> Bool {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+
+        return generatedTasks.contains { generatedTask in
+            generatedTask.parentTaskID == task.id
+                && !generatedTask.isCompleted
+                && calendar.startOfDay(for: generatedTask.scheduledDate) < today
+        }
+    }
+
+    private func isActiveDeadline(_ task: TaskItem) -> Bool {
+        ChaosCalculator.activeTasksForOverload(from: tasks).contains { $0.id == task.id }
+    }
+
+    private var futureStatusTone: Color {
+        Color(red: 0.38, green: 0.47, blue: 0.58)
+    }
+
+    private func activationText(for task: TaskItem) -> String {
+        let days = max(daysUntilActivation(for: task), 0)
+        return days == 1 ? "Ativa em 1 dia." : "Ativa em \(days) dias."
+    }
+
+    private func daysUntilActivation(for task: TaskItem) -> Int {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        let activationDate: Date?
+
+        switch task.dedicationStartMode {
+        case .today:
+            activationDate = today
+        case .tomorrow:
+            activationDate = task.dedicationStartDate
+                ?? calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: task.createdAt))
+        case .specificDate:
+            activationDate = task.dedicationStartDate
+        case .afterDeadline:
+            activationDate = tasks.first(where: { $0.id == task.dedicationDependencyTaskID })?.deadlineDate
+        }
+
+        guard let activationDate else { return 0 }
+        return calendar.dateComponents([.day], from: today, to: calendar.startOfDay(for: activationDate)).day ?? 0
+    }
+
+    private func delayStatusTone(isDelayed: Bool) -> Color {
+        isDelayed ? Color(red: 0.78, green: 0.18, blue: 0.15) : Color(red: 0.24, green: 0.62, blue: 0.36)
+    }
+
+    private func deadlineDelayTag(isDelayed: Bool, tone: Color, isVeryCompact: Bool) -> some View {
+        Text(isDelayed ? "Em atraso" : "Em dia")
+            .font(AppTheme.schoolbell(isVeryCompact ? 10 : 12))
+            .foregroundStyle(tone)
+            .lineLimit(1)
+            .minimumScaleFactor(0.78)
+            .padding(.horizontal, isVeryCompact ? 7 : 9)
+            .padding(.vertical, isVeryCompact ? 3 : 4)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(tone.opacity(0.16))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(tone.opacity(0.28), lineWidth: 1)
+            )
+    }
+
     private func delete(_ task: TaskItem) {
         withAnimation(.snappy) {
             TaskManager(modelContext: modelContext).deleteTask(task)
@@ -655,40 +986,22 @@ private struct SwipeToDeleteDeadlineCard<Content: View>: View {
     @ViewBuilder let content: Content
 
     @State private var horizontalOffset: CGFloat = 0
-    @State private var isOpen = false
 
-    private let revealWidth: CGFloat = 108
+    private let deleteThreshold: CGFloat = 220
 
     var body: some View {
-        ZStack(alignment: .trailing) {
-            HStack {
-                Spacer()
+        let deleteProgress = min(max(-horizontalOffset / deleteThreshold, 0), 1)
 
-                Button(role: .destructive) {
-                    withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
-                        horizontalOffset = 0
-                        isOpen = false
-                    }
-                    onDelete()
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 14, weight: .semibold))
-                        Text("Apagar")
-                            .font(AppTheme.schoolbell(15))
-                    }
-                    .foregroundStyle(.white)
-                    .frame(width: revealWidth, height: 52)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(AppTheme.critical)
-                    )
+        ZStack(alignment: .trailing) {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(AppTheme.critical.opacity(0.16 + 0.54 * deleteProgress))
+                .overlay(alignment: .trailing) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.46 + 0.54 * deleteProgress))
+                        .padding(.trailing, 24)
                 }
-                .buttonStyle(.plain)
-                .padding(.trailing, 8)
-                .offset(x: min(0, revealWidth + horizontalOffset))
-                .opacity(max(0, min(1, -horizontalOffset / revealWidth)))
-            }
+                .opacity(deleteProgress > 0 ? 1 : 0)
 
             content
                 .offset(x: horizontalOffset)
@@ -701,44 +1014,40 @@ private struct SwipeToDeleteDeadlineCard<Content: View>: View {
                             guard abs(horizontal) > abs(vertical) else { return }
 
                             if horizontal < 0 {
-                                horizontalOffset = max(horizontal, -revealWidth)
-                            } else if isOpen {
-                                horizontalOffset = min(0, -revealWidth + horizontal)
+                                horizontalOffset = horizontal
+                            } else {
+                                horizontalOffset = min(horizontal * 0.18, 18)
                             }
                         }
                         .onEnded { value in
                             let horizontal = value.translation.width
+                            let predictedHorizontal = value.predictedEndTranslation.width
                             let vertical = value.translation.height
 
                             guard abs(horizontal) > abs(vertical) else {
-                                if isOpen {
-                                    withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
-                                        horizontalOffset = -revealWidth
-                                    }
+                                withAnimation(.spring(response: 0.25, dampingFraction: 0.86)) {
+                                    horizontalOffset = 0
                                 }
                                 return
                             }
 
-                            withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
-                                if horizontal < -36 {
-                                    isOpen = true
-                                    horizontalOffset = -revealWidth
-                                } else {
-                                    isOpen = false
+                            if horizontal <= -deleteThreshold || predictedHorizontal <= -deleteThreshold * 1.08 {
+                                HapticManager.notify(.warning)
+                                withAnimation(.easeIn(duration: 0.16)) {
+                                    horizontalOffset = -520
+                                }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                                    onDelete()
+                                }
+                            } else {
+                                withAnimation(.spring(response: 0.25, dampingFraction: 0.86)) {
                                     horizontalOffset = 0
                                 }
                             }
                         }
                 )
                 .onTapGesture {
-                    if isOpen {
-                        withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
-                            isOpen = false
-                            horizontalOffset = 0
-                        }
-                    } else {
-                        onTap()
-                    }
+                    onTap()
                 }
         }
         .contentShape(Rectangle())
@@ -747,16 +1056,22 @@ private struct SwipeToDeleteDeadlineCard<Content: View>: View {
 
 private enum DeadlineFilter: String, CaseIterable, Identifiable {
     case all
-    case thisWeek
+    case onTrack
+    case delayed
+    case future
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .all:
-            return "Todas"
-        case .thisWeek:
-            return "Esta semana"
+            return "Todos"
+        case .onTrack:
+            return "Em dia"
+        case .delayed:
+            return "Em atraso"
+        case .future:
+            return "Futuras"
         }
     }
 }

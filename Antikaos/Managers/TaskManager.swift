@@ -19,6 +19,9 @@ struct TaskManager {
             recurrences: formData.recurrences,
             dedicationMinutes: formData.dedicationMinutes,
             deadlineDate: formData.deadlineDate,
+            dedicationStartMode: formData.dedicationStartMode,
+            dedicationStartDate: formData.dedicationStartDate,
+            dedicationDependencyTaskID: formData.dedicationDependencyTaskID,
             isCompleted: formData.completedSessions >= formData.totalSessions,
             notes: formData.normalizedNotes,
             isAppleSyncEnabled: formData.shouldSyncWithApple
@@ -59,6 +62,9 @@ struct TaskManager {
         task.completedSessions = min(max(formData.completedSessions, 0), max(task.tasksQuantity, task.totalSessions))
         task.dedicationMinutes = max(formData.dedicationMinutes, 0)
         task.deadlineDate = formData.deadlineDate
+        task.dedicationStartMode = formData.dedicationStartMode
+        task.dedicationStartDate = formData.dedicationStartDate
+        task.dedicationDependencyTaskID = formData.dedicationDependencyTaskID
         task.notes = formData.normalizedNotes
         task.isAppleSyncEnabled = formData.shouldSyncWithApple
         task.updatedAt = .now
@@ -146,6 +152,48 @@ struct TaskManager {
         saveContext()
     }
 
+    func completeGeneratedTask(id: UUID) {
+        let descriptor = FetchDescriptor<GeneratedTaskItem>(
+            predicate: #Predicate { generatedTask in
+                generatedTask.id == id
+            }
+        )
+
+        guard let generatedTask = (try? modelContext.fetch(descriptor))?.first,
+              !generatedTask.isCompleted else {
+            return
+        }
+
+        generatedTask.isCompleted = true
+        generatedTask.isDelayDismissed = false
+        AppleCalendarSyncManager.shared.markReminder(identifier: generatedTask.appleReminderIdentifier, isCompleted: true)
+
+        if let parentTask = fetchTasks().first(where: { $0.id == generatedTask.parentTaskID }) {
+            parentTask.completedSessions = min(parentTask.completedSessions + 1, max(parentTask.tasksQuantity, 1))
+            parentTask.updatedAt = .now
+            let didCompleteTask = parentTask.tasksQuantity > 0 && parentTask.completedSessions >= parentTask.tasksQuantity
+            parentTask.isCompleted = didCompleteTask
+
+            addHistory(
+                type: .sessionCompleted,
+                message: AppStrings.historySessionCompleted(parentTask.title),
+                relatedTaskTitle: parentTask.title,
+                chaosValue: parentTask.chaosScore
+            )
+
+            if didCompleteTask {
+                addHistory(
+                    type: .taskCompleted,
+                    message: AppStrings.historyCompleted(parentTask.title),
+                    relatedTaskTitle: parentTask.title,
+                    chaosValue: parentTask.chaosScore
+                )
+            }
+        }
+
+        saveContext()
+    }
+
     func completeTask(_ task: TaskItem) {
         guard !task.isCompleted else { return }
 
@@ -217,6 +265,11 @@ struct TaskManager {
                 .filter(\.isCompleted)
                 .map { generatedTaskKey(parentTaskID: $0.parentTaskID, scheduledDate: $0.scheduledDate) }
         )
+        let dismissedDelayKeys = Set(
+            existingGeneratedTasks
+                .filter(\.isDelayDismissed)
+                .map { generatedTaskKey(parentTaskID: $0.parentTaskID, scheduledDate: $0.scheduledDate) }
+        )
 
         for generatedTask in existingGeneratedTasks {
             modelContext.delete(generatedTask)
@@ -236,9 +289,17 @@ struct TaskManager {
                 continue
             }
 
+            guard let generationStartDate = generationStartDate(for: task, allTasks: allTasks) else {
+                task.tasksQuantity = 0
+                task.totalSessions = 1
+                task.completedSessions = 0
+                task.isCompleted = false
+                continue
+            }
+
             switch task.deadlineKind {
             case .continuous:
-                let scheduledDates = DeadlineSchedule.generatedTaskDates(for: task, from: .now)
+                let scheduledDates = DeadlineSchedule.generatedTaskDates(for: task, from: generationStartDate)
                 generatedParentTasks.append(task)
 
                 task.tasksQuantity = 0
@@ -260,7 +321,7 @@ struct TaskManager {
 
             case .punctual:
                 let completedSessions = task.completedSessions
-                let scheduledDates = punctualGeneratedTaskDates(for: task, from: .now)
+                let scheduledDates = punctualGeneratedTaskDates(for: task, from: generationStartDate)
                 generatedParentTasks.append(task)
 
                 task.tasksQuantity = 0
@@ -314,6 +375,7 @@ struct TaskManager {
                         dedicationMinutes: minutes,
                         scheduledDate: candidate.scheduledDate,
                         isCompleted: isCompleted,
+                        isDelayDismissed: dismissedDelayKeys.contains(key),
                         appleReminderIdentifier: appleReminderIdentifierByKey[key]
                     )
                 )
@@ -378,6 +440,34 @@ struct TaskManager {
         return selectedIndices
             .sorted()
             .compactMap { scheduledDate(on: days[$0], matchingTimeOf: task.deadlineDate, calendar: calendar) }
+    }
+
+    private func generationStartDate(for task: TaskItem, allTasks: [TaskItem]) -> Date? {
+        let calendar = Calendar.current
+
+        switch task.dedicationStartMode {
+        case .today:
+            return .now
+
+        case .tomorrow:
+            if let dedicationStartDate = task.dedicationStartDate {
+                return dedicationStartDate
+            }
+
+            return calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: task.createdAt))
+
+        case .specificDate:
+            guard let startDate = task.dedicationStartDate else { return .now }
+            return max(calendar.startOfDay(for: startDate), calendar.startOfDay(for: .now))
+
+        case .afterDeadline:
+            guard let dependencyID = task.dedicationDependencyTaskID else { return nil }
+            guard let dependency = allTasks.first(where: { $0.id == dependencyID }) else {
+                return .now
+            }
+
+            return dependency.isCompleted ? .now : nil
+        }
     }
 
     private func scheduledDate(on day: Date, matchingTimeOf referenceDate: Date, calendar: Calendar) -> Date? {
@@ -466,58 +556,69 @@ struct TaskManager {
         for candidates: [GeneratedTaskCandidate],
         availableMinutes: Int
     ) -> [String: Int] {
-        let baseTotal = candidates.reduce(0) { $0 + $1.baseMinutes }
-        guard baseTotal > availableMinutes else {
-            return Dictionary(
-                uniqueKeysWithValues: candidates.map {
-                    (generatedTaskKey(parentTaskID: $0.task.id, scheduledDate: $0.scheduledDate), $0.baseMinutes)
-                }
-            )
+        let minimumMinutes = 20
+        let maximumMinutes = 90
+        let increment = 5
+        let emptyAllocations = Dictionary(
+            uniqueKeysWithValues: candidates.map {
+                (generatedTaskKey(parentTaskID: $0.task.id, scheduledDate: $0.scheduledDate), 0)
+            }
+        )
+
+        guard availableMinutes >= minimumMinutes, !candidates.isEmpty else {
+            return emptyAllocations
         }
 
-        guard availableMinutes > 0, !candidates.isEmpty else {
-            return Dictionary(
-                uniqueKeysWithValues: candidates.map {
-                    (generatedTaskKey(parentTaskID: $0.task.id, scheduledDate: $0.scheduledDate), 0)
+        let selectedCandidates = candidates
+            .sorted { lhs, rhs in
+                let lhsWeight = DeadlinePriority.weight(for: lhs.task, asOf: lhs.scheduledDate)
+                let rhsWeight = DeadlinePriority.weight(for: rhs.task, asOf: rhs.scheduledDate)
+                if lhsWeight != rhsWeight {
+                    return lhsWeight > rhsWeight
                 }
-            )
+
+                if lhs.task.perceivedDifficulty != rhs.task.perceivedDifficulty {
+                    return lhs.task.perceivedDifficulty > rhs.task.perceivedDifficulty
+                }
+
+                return lhs.task.deadlineDate < rhs.task.deadlineDate
+            }
+            .prefix(max(availableMinutes / minimumMinutes, 0))
+
+        guard !selectedCandidates.isEmpty else {
+            return emptyAllocations
         }
 
-        let totalDifficulty = candidates.reduce(0) { $0 + max($1.task.perceivedDifficulty, 0) }
-        let equalWeight = totalDifficulty == 0
-        let totalWeight = equalWeight ? Double(candidates.count) : Double(totalDifficulty)
-
-        var allocations = candidates.map { candidate -> GeneratedTaskAllocation in
-            let weight = equalWeight ? 1.0 : Double(max(candidate.task.perceivedDifficulty, 0))
-            let rawMinutes = Double(availableMinutes) * weight / totalWeight
-            let roundedMinutes = Int((rawMinutes / 10.0).rounded() * 10)
-
-            return GeneratedTaskAllocation(
+        var allocations = selectedCandidates.map { candidate in
+            GeneratedTaskAllocation(
                 key: generatedTaskKey(parentTaskID: candidate.task.id, scheduledDate: candidate.scheduledDate),
-                difficulty: candidate.task.perceivedDifficulty,
-                remainder: rawMinutes - Double(roundedMinutes),
-                minutes: max(roundedMinutes, 0)
+                weight: DeadlinePriority.weightedDifficulty(for: candidate.task, asOf: candidate.scheduledDate),
+                minutes: minimumMinutes
             )
         }
 
-        while allocations.reduce(0, { $0 + $1.minutes }) > availableMinutes,
-              let index = allocations.indices.max(by: { allocations[$0].minutes < allocations[$1].minutes }),
-              allocations[index].minutes > 0 {
-            allocations[index].minutes -= 10
+        var remainingMinutes = max(availableMinutes - allocations.reduce(0) { $0 + $1.minutes }, 0)
+
+        while remainingMinutes >= increment,
+              let index = allocations.indices
+                .filter({ allocations[$0].minutes + increment <= maximumMinutes })
+                .max(by: {
+                    if allocations[$0].weight == allocations[$1].weight {
+                        return allocations[$0].minutes > allocations[$1].minutes
+                    }
+
+                    return allocations[$0].weight < allocations[$1].weight
+                }) {
+            allocations[index].minutes += increment
+            remainingMinutes -= increment
         }
 
-        while allocations.reduce(0, { $0 + $1.minutes }) + 10 <= availableMinutes,
-              let index = allocations.indices.max(by: {
-                  if allocations[$0].remainder == allocations[$1].remainder {
-                      return allocations[$0].difficulty < allocations[$1].difficulty
-                  }
-
-                  return allocations[$0].remainder < allocations[$1].remainder
-              }) {
-            allocations[index].minutes += 10
+        var result = emptyAllocations
+        for allocation in allocations {
+            result[allocation.key] = allocation.minutes
         }
 
-        return Dictionary(uniqueKeysWithValues: allocations.map { ($0.key, $0.minutes) })
+        return result
     }
 
     private func generatedTaskKey(parentTaskID: UUID, scheduledDate: Date) -> String {
@@ -715,7 +816,6 @@ private struct GeneratedTaskCandidate {
 
 private struct GeneratedTaskAllocation {
     let key: String
-    let difficulty: Int
-    let remainder: Double
+    let weight: Double
     var minutes: Int
 }

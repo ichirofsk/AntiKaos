@@ -67,7 +67,8 @@ struct CalendarView: View {
                     date: $0.scheduledDate,
                     dedicationMinutes: $0.dedicationMinutes,
                     chaosScore: nil,
-                    tint: AppTheme.supportGreen
+                    tint: $0.isCompleted ? AppTheme.supportGreen : AppTheme.primaryChaos,
+                    symbolName: $0.isCompleted ? "checkmark" : "hourglass"
                 )
             }
 

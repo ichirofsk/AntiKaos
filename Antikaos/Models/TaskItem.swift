@@ -68,6 +68,13 @@ extension DeadlineRecurrence {
     }
 }
 
+enum DedicationStartMode: String, Codable, CaseIterable {
+    case today
+    case tomorrow
+    case afterDeadline
+    case specificDate
+}
+
 @Model
 final class TaskItem {
     @Attribute(.unique) var id: UUID
@@ -80,6 +87,9 @@ final class TaskItem {
     var recurrenceRawValue: String = DeadlineRecurrence.daily.rawValue
     var dedicationMinutes: Int = 0
     var deadlineDate: Date
+    var dedicationStartModeRawValue: String = DedicationStartMode.today.rawValue
+    var dedicationStartDate: Date?
+    var dedicationDependencyTaskID: UUID?
     var createdAt: Date
     var updatedAt: Date
     var isCompleted: Bool
@@ -97,6 +107,9 @@ final class TaskItem {
         recurrences: Set<DeadlineRecurrence> = [.daily],
         dedicationMinutes: Int = 0,
         deadlineDate: Date,
+        dedicationStartMode: DedicationStartMode = .today,
+        dedicationStartDate: Date? = nil,
+        dedicationDependencyTaskID: UUID? = nil,
         createdAt: Date = .now,
         updatedAt: Date = .now,
         isCompleted: Bool = false,
@@ -114,6 +127,9 @@ final class TaskItem {
         self.recurrenceRawValue = Self.rawValue(for: recurrences)
         self.dedicationMinutes = max(dedicationMinutes, 0)
         self.deadlineDate = deadlineDate
+        self.dedicationStartModeRawValue = dedicationStartMode.rawValue
+        self.dedicationStartDate = dedicationStartDate
+        self.dedicationDependencyTaskID = dedicationDependencyTaskID
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.isCompleted = isCompleted || completedSessions >= totalSessions
@@ -127,6 +143,11 @@ extension TaskItem {
     var deadlineKind: DeadlineKind {
         get { DeadlineKind(rawValue: deadlineKindRawValue) ?? .punctual }
         set { deadlineKindRawValue = newValue.rawValue }
+    }
+
+    var dedicationStartMode: DedicationStartMode {
+        get { DedicationStartMode(rawValue: dedicationStartModeRawValue) ?? .today }
+        set { dedicationStartModeRawValue = newValue.rawValue }
     }
 
     var recurrence: DeadlineRecurrence {

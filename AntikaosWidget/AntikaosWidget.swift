@@ -97,13 +97,13 @@ private enum WidgetChaosLevel {
     var title: String {
         switch self {
         case .controlled:
-            return "Caos controlado"
+            return "Sobrecarga controlada"
         case .moderate:
-            return "Caos moderado"
+            return "Sobrecarga moderada"
         case .high:
-            return "Caos alto"
+            return "Sobrecarga alta"
         case .critical:
-            return "Caos crítico"
+            return "Sobrecarga crítica"
         }
     }
 
@@ -257,7 +257,7 @@ struct AntikaosChaosWidgetView: View {
                             .font(WidgetFont.schoolbell(size: compact ? 16 : 18))
                             .foregroundStyle(Color.black.opacity(0.84))
 
-                        Text("Seu caos está sob controle por enquanto.")
+                        Text("Sua sobrecarga está sob controle por enquanto.")
                             .font(WidgetFont.schoolbell(size: compact ? 12 : 13))
                             .foregroundStyle(Color.black.opacity(0.54))
                     }
@@ -374,8 +374,8 @@ struct AntikaosChaosWidget: Widget {
         StaticConfiguration(kind: kind, provider: AntikaosWidgetProvider()) { entry in
             AntikaosChaosWidgetView(entry: entry)
         }
-        .configurationDisplayName("Caos do usuário")
-        .description("Mostra o caos atual e as próximas deadlines do usuário.")
+        .configurationDisplayName("Sobrecarga do usuário")
+        .description("Mostra a sobrecarga atual e as próximas deadlines do usuário.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }

@@ -66,12 +66,12 @@ struct ProfileView: View {
 
     private var chaosDisplayName: String {
         let label = AppStrings.localized(todayChaosLevel.titleKey)
-        return label.replacingOccurrences(of: "Caos ", with: "")
+        return label.replacingOccurrences(of: "Sobrecarga ", with: "")
     }
 
     private var weeklyChaosDisplayName: String {
         let label = AppStrings.localized(ChaosLevel(value: averageWeeklyChaos).titleKey)
-        return label.replacingOccurrences(of: "Caos ", with: "")
+        return label.replacingOccurrences(of: "Sobrecarga ", with: "")
     }
 
     var body: some View {
@@ -146,7 +146,7 @@ struct ProfileView: View {
                         .minimumScaleFactor(0.8)
                 }
 
-                Text("Seu caos está \(chaosDisplayName.lowercased()) hoje.")
+                Text("Sua sobrecarga está \(chaosDisplayName.lowercased()) hoje.")
                     .font(AppTheme.schoolbell(isVeryCompact ? 18 : 20))
                     .foregroundStyle(AppTheme.secondaryText)
             }
@@ -191,7 +191,7 @@ struct ProfileView: View {
                         .foregroundStyle(AppTheme.primaryChaos)
 
                     HStack(spacing: 8) {
-                        Text("Caos da semana")
+                        Text("Sobrecarga da semana")
                             .font(AppTheme.schoolbell(isVeryCompact ? 16 : 18))
                             .foregroundStyle(AppTheme.primaryText)
                             .lineLimit(1)
@@ -327,7 +327,7 @@ struct ProfileView: View {
 
     private var chaosInfoBubble: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Cálculo da média dos valores do Caos na semana")
+            Text("Cálculo da média dos valores da Sobrecarga na semana")
                 .font(AppTheme.schoolbell(15))
                 .foregroundStyle(AppTheme.primaryText)
 

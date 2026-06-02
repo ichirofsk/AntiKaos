@@ -236,7 +236,7 @@ struct DashboardView: View {
 
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Text("O que é o caos?")
+                    Text("O que é a sobrecarga?")
                         .font(AppTheme.schoolbell(24))
                         .foregroundStyle(AppTheme.primaryText)
 
@@ -259,7 +259,7 @@ struct DashboardView: View {
                 }
 
                 JustifiedText(
-                    text: "A métrica Caos relaciona a quantidade de deadlines, o tempo restante para a finalização de cada deadline, o progresso e a dificuldade percebida em cada uma, a fim de ajudar o usuário a se localizar quanto a suas entregas, da melhor forma possível.\n\nMantenha-se em dia para não deixar o Caos tomar conta!",
+                    text: "A métrica Sobrecarga relaciona a quantidade de deadlines ativas, o tempo restante para a finalização de cada deadline, o progresso e a dificuldade percebida em cada uma, a fim de ajudar o usuário a se localizar quanto a suas entregas, da melhor forma possível.\n\nMantenha-se em dia para não deixar a Sobrecarga tomar conta!",
                     fontSize: 16,
                     color: UIColor.black.withAlphaComponent(0.64)
                 )

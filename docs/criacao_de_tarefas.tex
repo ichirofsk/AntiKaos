@@ -1,0 +1,335 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{geometry}
+\usepackage{enumitem}
+
+\geometry{margin=2.5cm}
+\setlength{\parskip}{0.7em}
+\setlength{\parindent}{0pt}
+
+\title{Cálculo e Fluxo de Criação de Tarefas}
+\author{Antikaos}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Ideia geral}
+
+Cada deadline pode gerar tarefas planejadas. A geração respeita:
+
+\begin{itemize}
+    \item o tipo da deadline: \textit{contínua} ou \textit{pontual};
+    \item a data final da deadline;
+    \item a opção \textit{Começar a me dedicar};
+    \item a recorrência escolhida, no caso das deadlines contínuas;
+    \item a disponibilidade diária do usuário;
+    \item a prioridade dada por proximidade da entrega e dificuldade percebida.
+\end{itemize}
+
+Nenhuma tarefa é gerada no próprio dia da entrega da deadline. Nesse dia, a deadline aparece no calendário, mas não cria uma tarefa de dedicação.
+
+\section{Início da geração}
+
+Para cada deadline $d_i$, define-se uma data inicial de geração $G_i$:
+
+\[
+G_i =
+\begin{cases}
+t, & \text{se o modo for ``hoje''} \\
+S_i, & \text{se o modo for ``amanhã''} \\
+\max(S_i, \operatorname{dia}(t)), & \text{se o modo for ``data específica''} \\
+t, & \text{se o modo for ``após deadline'' e a dependência estiver concluída} \\
+\varnothing, & \text{se o modo for ``após deadline'' e a dependência não estiver concluída}
+\end{cases}
+\]
+
+Se $G_i = \varnothing$, nenhuma tarefa é criada para a deadline naquele momento.
+
+\subsection*{Legenda}
+
+\begin{description}[leftmargin=2.2cm]
+    \item[$G_i$] Data inicial efetiva de geração das tarefas da deadline $i$.
+    \item[$t$] Momento atual.
+    \item[$S_i$] Data salva para início de dedicação, quando aplicável.
+    \item[$\operatorname{dia}(t)$] Início do dia de $t$.
+\end{description}
+
+\section{Intervalo válido}
+
+As tarefas só podem ser geradas em dias anteriores ao dia da entrega:
+
+\[
+\operatorname{dia}(G_i) \leq x < \operatorname{dia}(T_i)
+\]
+
+\subsection*{Legenda}
+
+\begin{description}[leftmargin=2.2cm]
+    \item[$x$] Dia candidato para criação de tarefa.
+    \item[$T_i$] Data e hora final da deadline $i$.
+\end{description}
+
+\section{Deadlines contínuas}
+
+Para uma deadline contínua, o app percorre os dias do intervalo válido e aplica a regra de recorrência.
+
+\subsection{Recorrência diária}
+
+Se a recorrência for ``todos os dias'', todo dia válido gera uma tarefa:
+
+\[
+R_i(x) = 1
+\]
+
+\subsection{Recorrência a cada dois dias}
+
+Se a recorrência for ``a cada dois dias'', gera tarefa quando a distância para o início é par:
+
+\[
+R_i(x) =
+\begin{cases}
+1, & \text{se } \delta(x, G_i) \equiv 0 \pmod{2} \\
+0, & \text{caso contrário}
+\end{cases}
+\]
+
+\subsection{Recorrência por dias da semana}
+
+Se o usuário escolhe dias da semana, uma tarefa é gerada quando o dia candidato pertence ao conjunto selecionado:
+
+\[
+R_i(x) =
+\begin{cases}
+1, & \text{se } w(x) \in W_i \\
+0, & \text{caso contrário}
+\end{cases}
+\]
+
+\subsection*{Legenda}
+
+\begin{description}[leftmargin=2.2cm]
+    \item[$R_i(x)$] Indicador de geração de tarefa da deadline $i$ no dia $x$.
+    \item[$\delta(x, G_i)$] Número de dias entre o início $G_i$ e o dia $x$.
+    \item[$w(x)$] Dia da semana de $x$.
+    \item[$W_i$] Conjunto de dias da semana escolhidos pelo usuário.
+\end{description}
+
+\section{Deadlines pontuais}
+
+Para uma deadline pontual, o usuário informa:
+
+\begin{itemize}
+    \item número de sessões planejadas;
+    \item tempo de dedicação por sessão.
+\end{itemize}
+
+Seja $H_i$ o conjunto de dias válidos entre $G_i$ e o dia anterior à entrega:
+
+\[
+H_i = \{x \mid \operatorname{dia}(G_i) \leq x < \operatorname{dia}(T_i)\}
+\]
+
+O número efetivo de sessões é:
+
+\[
+u_i = \min(P_i, |H_i|)
+\]
+
+As $u_i$ sessões são distribuídas uniformemente ao longo de $H_i$. Para cada sessão $j$, com $0 \leq j < u_i$, o índice escolhido é:
+
+\[
+\ell_j =
+\operatorname{round}
+\left(
+\frac{j(|H_i|-1)}{\max(u_i-1,1)}
+\right)
+\]
+
+\subsection*{Legenda}
+
+\begin{description}[leftmargin=2.2cm]
+    \item[$H_i$] Conjunto de dias disponíveis antes da entrega.
+    \item[$P_i$] Número de sessões planejadas pelo usuário.
+    \item[$u_i$] Número efetivo de sessões que cabem no intervalo.
+    \item[$\ell_j$] Índice do dia escolhido para a sessão $j$ dentro de $H_i$.
+\end{description}
+
+\section{Reserva discreta no dia da entrega}
+
+No dia final de uma deadline, nenhuma tarefa de dedicação é criada. Porém, para o cálculo de disponibilidade do dia, cada deadline que termina naquela data reserva discretamente $60$ minutos:
+
+\[
+B(x) = 60 \cdot E(x)
+\]
+
+\[
+E(x) =
+\left|
+\{d_i \mid \neg C_i \land \operatorname{dia}(T_i) = x\}
+\right|
+\]
+
+\subsection*{Legenda}
+
+\begin{description}[leftmargin=2.2cm]
+    \item[$B(x)$] Minutos reservados discretamente no dia $x$ por entregas finais.
+    \item[$E(x)$] Número de deadlines não concluídas que terminam no dia $x$.
+\end{description}
+
+\section{Disponibilidade diária}
+
+Para cada dia $x$, o usuário possui um tempo disponível $M(x)$, em minutos. Primeiro, subtraem-se a reserva discreta e as tarefas pontuais, que têm preferência:
+
+\[
+L(x) =
+\max
+\left(
+M(x) - B(x) - F(x),
+0
+\right)
+\]
+
+\[
+F(x) =
+\sum_{g \in P(x)} m_g
+\]
+
+\subsection*{Legenda}
+
+\begin{description}[leftmargin=2.2cm]
+    \item[$M(x)$] Minutos disponíveis do usuário no dia $x$.
+    \item[$L(x)$] Minutos restantes para distribuir entre tarefas contínuas.
+    \item[$P(x)$] Conjunto de tarefas pontuais candidatas no dia $x$.
+    \item[$m_g$] Minutos fixos da tarefa pontual $g$, informados pelo usuário.
+\end{description}
+
+\section{Peso de prioridade para tarefas contínuas}
+
+Cada deadline contínua candidata recebe um peso $w_i$:
+
+\[
+w_i =
+\begin{cases}
+4, & \text{se está próxima e é difícil} \\
+3, & \text{se está próxima e não é difícil} \\
+2, & \text{se não está próxima e é difícil} \\
+1, & \text{se não está próxima e não é difícil}
+\end{cases}
+\]
+
+Uma deadline é considerada próxima quando faltam até $3$ dias para sua entrega:
+
+\[
+\Delta_i(x) \leq 3
+\]
+
+Ela é considerada difícil quando:
+
+\[
+q_i \geq 61
+\]
+
+O peso usado na distribuição incremental de minutos é:
+
+\[
+\omega_i = w_i \cdot \max(q_i, 1)
+\]
+
+\subsection*{Legenda}
+
+\begin{description}[leftmargin=2.2cm]
+    \item[$w_i$] Peso categórico da deadline contínua $i$.
+    \item[$\omega_i$] Peso ponderado por dificuldade.
+    \item[$q_i$] Dificuldade percebida da deadline $i$.
+    \item[$\Delta_i(x)$] Dias restantes entre o dia $x$ e a entrega da deadline $i$.
+\end{description}
+
+\section{Distribuição de minutos para tarefas contínuas}
+
+Cada tarefa contínua criada precisa ter pelo menos $20$ minutos e no máximo $90$ minutos. Os minutos são sempre múltiplos de $5$.
+
+Seja $C(x)$ o conjunto de tarefas contínuas candidatas no dia $x$. Primeiro, se $L(x) < 20$, nenhuma tarefa contínua é criada:
+
+\[
+L(x) < 20 \Rightarrow C_{\text{criada}}(x) = \varnothing
+\]
+
+Caso haja tempo, o número máximo de tarefas contínuas criáveis é:
+
+\[
+K(x) =
+\left\lfloor
+\frac{L(x)}{20}
+\right\rfloor
+\]
+
+As candidatas são ordenadas por:
+
+\begin{enumerate}
+    \item maior peso $w_i$;
+    \item maior dificuldade percebida $q_i$;
+    \item data de entrega mais próxima.
+\end{enumerate}
+
+As primeiras $K(x)$ candidatas recebem $20$ minutos iniciais:
+
+\[
+m_i = 20
+\]
+
+O restante é:
+
+\[
+L_r(x) = L(x) - 20 \cdot |C_{\text{criada}}(x)|
+\]
+
+Enquanto $L_r(x) \geq 5$, o app adiciona blocos de $5$ minutos à tarefa elegível de maior peso ponderado $\omega_i$, respeitando o teto de $90$ minutos:
+
+\[
+m_i \leftarrow m_i + 5
+\quad \text{se} \quad
+m_i + 5 \leq 90
+\]
+
+\subsection*{Legenda}
+
+\begin{description}[leftmargin=2.2cm]
+    \item[$C(x)$] Conjunto de tarefas contínuas candidatas no dia $x$.
+    \item[$C_{\text{criada}}(x)$] Subconjunto de tarefas contínuas efetivamente criadas.
+    \item[$K(x)$] Número máximo de tarefas contínuas que cabem no tempo restante.
+    \item[$m_i$] Minutos atribuídos à tarefa contínua da deadline $i$.
+    \item[$L_r(x)$] Minutos restantes após a alocação mínima.
+\end{description}
+
+\section{Criação final da tarefa}
+
+Uma tarefa só é persistida se:
+
+\[
+m_i > 0
+\]
+
+O título final da tarefa segue a forma:
+
+\[
+\text{``Se dedicar } m_i \text{ minutos para } \text{nome da deadline}\text{''}
+\]
+
+\section{Preservação de estado}
+
+Quando as tarefas geradas são reconstruídas, o app preserva:
+
+\begin{itemize}
+    \item tarefas já concluídas;
+    \item identificadores de integração com Apple Lembretes;
+    \item atrasos descartados do card de \textit{Tasks atrasadas}.
+\end{itemize}
+
+\end{document}
