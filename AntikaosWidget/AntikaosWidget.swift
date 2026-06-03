@@ -1,5 +1,6 @@
 import WidgetKit
 import SwiftUI
+import ActivityKit
 
 enum WidgetShared {
     static let appGroupID = "group.br.com.antonio.Antikaos"
@@ -33,6 +34,16 @@ struct WidgetDeadlineEntry: Codable, Identifiable {
     let difficulty: Int
     let completedSessions: Int
     let totalSessions: Int
+}
+
+struct ChaosActivityAttributes: ActivityAttributes {
+    struct ContentState: Codable, Hashable {
+        let chaosValue: Int
+        let levelTitle: String
+        let updatedAt: Date
+    }
+
+    let title: String
 }
 
 struct AntikaosWidgetProvider: TimelineProvider {
@@ -380,9 +391,155 @@ struct AntikaosChaosWidget: Widget {
     }
 }
 
+struct AntikaosChaosLiveActivity: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: ChaosActivityAttributes.self) { context in
+            ChaosLiveActivityLockScreenView(state: context.state)
+                .activityBackgroundTint(Color(red: 244 / 255, green: 237 / 255, blue: 232 / 255))
+                .activitySystemActionForegroundColor(WidgetChaosLevel(value: context.state.chaosValue).tint)
+        } dynamicIsland: { context in
+            let state = context.state
+            let level = WidgetChaosLevel(value: state.chaosValue)
+
+            return DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    HStack(spacing: 10) {
+                        ChaosLiveActivityGauge(value: state.chaosValue, size: 46, lineWidth: 5)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Sobrecarga")
+                                .font(WidgetFont.schoolbell(size: 18))
+                                .foregroundStyle(Color.white.opacity(0.86))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.72)
+
+                            Text(state.levelTitle)
+                                .font(WidgetFont.schoolbell(size: 17))
+                                .foregroundStyle(level.tint)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.72)
+                        }
+                    }
+                }
+
+                DynamicIslandExpandedRegion(.trailing) {
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text("\(state.chaosValue)")
+                            .font(WidgetFont.schoolbell(size: 28))
+                            .foregroundStyle(level.tint)
+                            .lineLimit(1)
+
+                        Text("/100")
+                            .font(WidgetFont.schoolbell(size: 13))
+                            .foregroundStyle(Color.white.opacity(0.62))
+                            .lineLimit(1)
+                    }
+                }
+
+                DynamicIslandExpandedRegion(.bottom) {
+                    VStack(alignment: .leading, spacing: 7) {
+                        ProgressView(value: min(max(Double(state.chaosValue), 0), 100), total: 100)
+                            .tint(level.tint)
+
+                        HStack {
+                            Text("Atualizado \(relativeUpdateText(for: state.updatedAt))")
+                                .font(WidgetFont.schoolbell(size: 13))
+                                .foregroundStyle(Color.white.opacity(0.68))
+
+                            Spacer()
+
+                            Text("\(state.chaosValue)/100")
+                                .font(WidgetFont.schoolbell(size: 14))
+                                .foregroundStyle(level.tint)
+                        }
+                    }
+                }
+            } compactLeading: {
+                Text("Sobrecarga")
+                    .font(WidgetFont.schoolbell(size: 13))
+                    .foregroundStyle(Color.white.opacity(0.84))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+            } compactTrailing: {
+                ChaosLiveActivityGauge(value: state.chaosValue, size: 28, lineWidth: 3)
+            } minimal: {
+                ChaosLiveActivityGauge(value: state.chaosValue, size: 24, lineWidth: 3)
+            }
+            .keylineTint(level.tint)
+        }
+    }
+
+    private func relativeUpdateText(for date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.locale = Locale(identifier: "pt_BR")
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: .now)
+    }
+}
+
+private struct ChaosLiveActivityLockScreenView: View {
+    let state: ChaosActivityAttributes.ContentState
+
+    var body: some View {
+        let level = WidgetChaosLevel(value: state.chaosValue)
+
+        HStack(spacing: 14) {
+            ChaosLiveActivityGauge(value: state.chaosValue, size: 62, lineWidth: 7)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Sobrecarga do usuário")
+                    .font(WidgetFont.schoolbell(size: 19))
+                    .foregroundStyle(Color.black.opacity(0.88))
+
+                Text(state.levelTitle)
+                    .font(WidgetFont.schoolbell(size: 16))
+                    .foregroundStyle(level.tint)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+
+            Spacer(minLength: 8)
+
+            Text("\(state.chaosValue)/100")
+                .font(WidgetFont.schoolbell(size: 20))
+                .foregroundStyle(Color.black.opacity(0.82))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+}
+
+private struct ChaosLiveActivityGauge: View {
+    let value: Int
+    let size: CGFloat
+    let lineWidth: CGFloat
+
+    var body: some View {
+        let level = WidgetChaosLevel(value: value)
+        let progress = min(max(Double(value) / 100, 0), 1)
+
+        ZStack {
+            Circle()
+                .stroke(Color.white.opacity(0.22), lineWidth: lineWidth)
+
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(level.tint, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+
+            Text("\(value)")
+                .font(WidgetFont.schoolbell(size: max(size * 0.34, 12)))
+                .foregroundStyle(level.tint)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(width: size, height: size)
+    }
+}
+
 @main
 struct AntikaosWidgetBundle: WidgetBundle {
     var body: some Widget {
         AntikaosChaosWidget()
+        AntikaosChaosLiveActivity()
     }
 }

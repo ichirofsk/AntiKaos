@@ -6,6 +6,7 @@ struct ProfileView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var premiumAccessManager: PremiumAccessManager
     @AppStorage("profile.userName") private var userName = ""
+    @AppStorage("liveActivity.isEnabled") private var isLiveActivityEnabled = true
     @Query(sort: \TaskItem.updatedAt, order: .reverse) private var tasks: [TaskItem]
     @Query(sort: \HistoryEntry.date, order: .reverse) private var historyEntries: [HistoryEntry]
     @Query(sort: \modelHorasDisponiveis.updatedAt, order: .reverse) private var availableHoursModels: [modelHorasDisponiveis]
@@ -87,6 +88,7 @@ struct ProfileView: View {
                         headerSection(isCompact: isCompact, isVeryCompact: isVeryCompact)
                         overviewSection(isCompact: isCompact, isVeryCompact: isVeryCompact)
                         availableHoursSection
+                        liveActivitySection(isVeryCompact: isVeryCompact)
                         historySection(isCompact: isCompact, isVeryCompact: isVeryCompact)
                     }
                     .padding(.horizontal, isVeryCompact ? 16 : 20)
@@ -364,6 +366,64 @@ struct ProfileView: View {
                 isVeryCompact: UIScreen.main.bounds.width < 370
             )
         }
+    }
+
+    private func liveActivitySection(isVeryCompact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Toggle(isOn: $isLiveActivityEnabled) {
+                HStack(spacing: 12) {
+                    Circle()
+                        .stroke(AppTheme.track, lineWidth: 6)
+                        .overlay {
+                            Circle()
+                                .trim(from: 0, to: CGFloat(Double(ChaosCalculator.overallChaos(for: tasks)) / 100))
+                                .stroke(todayChaosLevel.tint, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                                .rotationEffect(.degrees(-90))
+                        }
+                        .frame(width: isVeryCompact ? 38 : 44, height: isVeryCompact ? 38 : 44)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Manter Live Activity")
+                            .font(AppTheme.schoolbell(isVeryCompact ? 19 : 21))
+                            .foregroundStyle(AppTheme.primaryText)
+
+                        Text("Recria a sobrecarga na tela bloqueada quando o app voltar.")
+                            .font(AppTheme.schoolbell(isVeryCompact ? 14 : 15))
+                            .foregroundStyle(AppTheme.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .toggleStyle(.switch)
+            .tint(AppTheme.primaryChaos)
+            .onChange(of: isLiveActivityEnabled) { _, newValue in
+                HapticManager.selection()
+                WidgetSyncManager.setLiveActivityEnabled(newValue, tasks: tasks)
+            }
+
+            Button {
+                HapticManager.notify(.success)
+                isLiveActivityEnabled = true
+                WidgetSyncManager.reactivateLiveActivity(from: tasks)
+            } label: {
+                HStack {
+                    Image(systemName: "bolt.circle.fill")
+                        .font(.system(size: 17, weight: .semibold))
+
+                    Text("Reativar agora")
+                        .font(AppTheme.schoolbell(isVeryCompact ? 17 : 18))
+                }
+                .foregroundStyle(Color.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(AppTheme.primaryChaos)
+                )
+            }
+            .buttonStyle(.plain)
+        }
+        .softCard()
     }
 
     private func historySection(isCompact: Bool, isVeryCompact: Bool) -> some View {

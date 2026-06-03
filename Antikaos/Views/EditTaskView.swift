@@ -19,6 +19,8 @@ struct EditTaskView: View {
     @State private var deadlineDate: Date
     @State private var draftDeadlineDate: Date
     @State private var isEditingDeadlineDate = false
+    @State private var isShowingContinuousInfo = false
+    @State private var isShowingSessionsInfo = false
     @State private var dedicationStartMode: DedicationStartMode
     @State private var dedicationStartDate: Date
     @State private var dedicationDependencyTaskID: UUID?
@@ -164,48 +166,13 @@ struct EditTaskView: View {
 
                         if deadlineKind == .continuous {
                             inputCard {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text(AppStrings.localized("task.field.recurrence"))
-                                        .font(AppTheme.schoolbell(16))
-                                        .foregroundStyle(AppTheme.secondaryText)
-
-                                    LazyVGrid(columns: recurrenceColumns, spacing: 10) {
-                                        ForEach(DeadlineRecurrence.allCases, id: \.self) { recurrenceOption in
-                                            recurrenceButton(recurrenceOption)
-                                        }
-                                    }
-                                }
+                                continuousPlanningSection
                             }
                         }
 
                         if deadlineKind == .punctual {
                             inputCard {
-                                VStack(spacing: 16) {
-                                    stepperRow(
-                                        title: AppStrings.localized("task.field.totalSessions"),
-                                        value: $totalSessions,
-                                        range: 1...maxPunctualSessions,
-                                        field: .totalSessions
-                                    )
-
-                                    Divider()
-
-                                    stepperRow(
-                                        title: AppStrings.localized("task.field.completedSessions"),
-                                        value: $completedSessions,
-                                        range: 0...max(totalSessions, 1),
-                                        field: .completedSessions
-                                    )
-
-                                    Divider()
-
-                                    stepperRow(
-                                        title: AppStrings.localized("task.field.dedicationMinutes"),
-                                        value: $dedicationMinutes,
-                                        range: 0...600,
-                                        field: .dedicationMinutes
-                                    )
-                                }
+                                sessionPlanningSection
                             }
                         }
 
@@ -261,6 +228,155 @@ struct EditTaskView: View {
     private func inputCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         content()
             .softCard()
+    }
+
+    private var continuousPlanningSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(AppStrings.localized("task.field.recurrence"))
+                        .font(AppTheme.schoolbell(20))
+                        .foregroundStyle(AppTheme.primaryText)
+
+                    Text("Defina quando essa rotina volta")
+                        .font(AppTheme.schoolbell(15))
+                        .foregroundStyle(AppTheme.secondaryText)
+                }
+
+                Spacer()
+
+                Button {
+                    HapticManager.selection()
+                    withAnimation(.snappy(duration: 0.22)) {
+                        isShowingContinuousInfo.toggle()
+                    }
+                } label: {
+                    Image(systemName: isShowingContinuousInfo ? "info.circle.fill" : "info.circle")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(isShowingContinuousInfo ? Color.white : AppTheme.primaryChaos)
+                        .frame(width: 38, height: 38)
+                        .background(
+                            Circle()
+                                .fill(isShowingContinuousInfo ? AppTheme.primaryChaos : Color.white.opacity(0.72))
+                                .overlay {
+                                    Circle()
+                                        .stroke(AppTheme.primaryText.opacity(0.12), lineWidth: 1)
+                                }
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isShowingContinuousInfo ? "Ocultar explicação sobre recorrência" : "Explicar recorrência")
+            }
+
+            if isShowingContinuousInfo {
+                Text("No contínuo, as sessões são compromissos recorrentes da sua rotina. Você escolhe a frequência, e o Antikaos usa isso para organizar a semana sem tratar como uma deadline única com várias partes.")
+                    .font(AppTheme.schoolbell(16))
+                    .foregroundStyle(AppTheme.primaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(AppTheme.secondarySurface)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(AppTheme.primaryChaos.opacity(0.16), lineWidth: 1)
+                            }
+                    )
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            LazyVGrid(columns: recurrenceColumns, spacing: 10) {
+                ForEach(DeadlineRecurrence.allCases, id: \.self) { recurrenceOption in
+                    recurrenceButton(recurrenceOption)
+                }
+            }
+        }
+    }
+
+    private var sessionPlanningSection: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Sessões")
+                        .font(AppTheme.schoolbell(20))
+                        .foregroundStyle(AppTheme.primaryText)
+
+                    Text("Divida a deadline em partes menores")
+                        .font(AppTheme.schoolbell(15))
+                        .foregroundStyle(AppTheme.secondaryText)
+                }
+
+                Spacer()
+
+                Button {
+                    HapticManager.selection()
+                    withAnimation(.snappy(duration: 0.22)) {
+                        isShowingSessionsInfo.toggle()
+                    }
+                } label: {
+                    Image(systemName: isShowingSessionsInfo ? "info.circle.fill" : "info.circle")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(isShowingSessionsInfo ? Color.white : AppTheme.primaryChaos)
+                        .frame(width: 38, height: 38)
+                        .background(
+                            Circle()
+                                .fill(isShowingSessionsInfo ? AppTheme.primaryChaos : Color.white.opacity(0.72))
+                                .overlay {
+                                    Circle()
+                                        .stroke(AppTheme.primaryText.opacity(0.12), lineWidth: 1)
+                                }
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isShowingSessionsInfo ? "Ocultar explicação sobre sessões" : "Explicar sessões")
+            }
+
+            if isShowingSessionsInfo {
+                Text("Sessões são blocos de estudo ou trabalho para concluir uma deadline. Em vez de pensar nela como uma coisa enorme, você escolhe quantas partes ela precisa e marca cada sessão concluída conforme avança.")
+                    .font(AppTheme.schoolbell(16))
+                    .foregroundStyle(AppTheme.primaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(AppTheme.secondarySurface)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(AppTheme.primaryChaos.opacity(0.16), lineWidth: 1)
+                            }
+                    )
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            Divider()
+
+            stepperRow(
+                title: AppStrings.localized("task.field.totalSessions"),
+                value: $totalSessions,
+                range: 1...maxPunctualSessions,
+                field: .totalSessions
+            )
+
+            Divider()
+
+            stepperRow(
+                title: AppStrings.localized("task.field.completedSessions"),
+                value: $completedSessions,
+                range: 0...max(totalSessions, 1),
+                field: .completedSessions
+            )
+
+            Divider()
+
+            stepperRow(
+                title: AppStrings.localized("task.field.dedicationMinutes"),
+                value: $dedicationMinutes,
+                range: 0...600,
+                field: .dedicationMinutes
+            )
+        }
     }
 
     private func stepperRow(title: String, value: Binding<Int>, range: ClosedRange<Int>, field: NumericField) -> some View {

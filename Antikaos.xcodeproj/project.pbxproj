@@ -521,6 +521,7 @@
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "O Antikaos usa o Calendário para mostrar feriados e integrar suas deadlines.";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "O Antikaos usa Lembretes para criar e atualizar suas atividades como to-dos.";
 				INFOPLIST_KEY_NSRemindersUsageDescription = "O Antikaos usa Lembretes para sincronizar suas atividades com o To-do.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIAppFonts = "Schoolbell-Regular.ttf";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -566,6 +567,7 @@
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "O Antikaos usa o Calendário para mostrar feriados e integrar suas deadlines.";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "O Antikaos usa Lembretes para criar e atualizar suas atividades como to-dos.";
 				INFOPLIST_KEY_NSRemindersUsageDescription = "O Antikaos usa Lembretes para sincronizar suas atividades com o To-do.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIAppFonts = "Schoolbell-Regular.ttf";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
