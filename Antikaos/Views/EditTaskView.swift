@@ -198,6 +198,7 @@ struct EditTaskView: View {
             }
             .navigationTitle(viewTitle)
             .navigationBarTitleDisplayMode(.inline)
+            .dismissKeyboardOnTap()
             .onAppear {
                 totalSessions = min(totalSessions, maxPunctualSessions)
                 completedSessions = min(completedSessions, totalSessions)

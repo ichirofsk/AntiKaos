@@ -7,6 +7,7 @@ struct ProfileView: View {
     @EnvironmentObject private var premiumAccessManager: PremiumAccessManager
     @AppStorage("profile.userName") private var userName = ""
     @AppStorage("liveActivity.isEnabled") private var isLiveActivityEnabled = true
+    @AppStorage("profile.didCompleteAppTutorial") private var didCompleteAppTutorial = false
     @Query(sort: \TaskItem.updatedAt, order: .reverse) private var tasks: [TaskItem]
     @Query(sort: \HistoryEntry.date, order: .reverse) private var historyEntries: [HistoryEntry]
     @Query(sort: \modelHorasDisponiveis.updatedAt, order: .reverse) private var availableHoursModels: [modelHorasDisponiveis]
@@ -89,6 +90,7 @@ struct ProfileView: View {
                         overviewSection(isCompact: isCompact, isVeryCompact: isVeryCompact)
                         availableHoursSection
                         liveActivitySection(isVeryCompact: isVeryCompact)
+                        tutorialSection(isVeryCompact: isVeryCompact)
                         historySection(isCompact: isCompact, isVeryCompact: isVeryCompact)
                     }
                     .padding(.horizontal, isVeryCompact ? 16 : 20)
@@ -371,27 +373,15 @@ struct ProfileView: View {
     private func liveActivitySection(isVeryCompact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Toggle(isOn: $isLiveActivityEnabled) {
-                HStack(spacing: 12) {
-                    Circle()
-                        .stroke(AppTheme.track, lineWidth: 6)
-                        .overlay {
-                            Circle()
-                                .trim(from: 0, to: CGFloat(Double(ChaosCalculator.overallChaos(for: tasks)) / 100))
-                                .stroke(todayChaosLevel.tint, style: StrokeStyle(lineWidth: 6, lineCap: .round))
-                                .rotationEffect(.degrees(-90))
-                        }
-                        .frame(width: isVeryCompact ? 38 : 44, height: isVeryCompact ? 38 : 44)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Manter Live Activity")
+                        .font(AppTheme.schoolbell(isVeryCompact ? 19 : 21))
+                        .foregroundStyle(AppTheme.primaryText)
 
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Manter Live Activity")
-                            .font(AppTheme.schoolbell(isVeryCompact ? 19 : 21))
-                            .foregroundStyle(AppTheme.primaryText)
-
-                        Text("Recria a sobrecarga na tela bloqueada quando o app voltar.")
-                            .font(AppTheme.schoolbell(isVeryCompact ? 14 : 15))
-                            .foregroundStyle(AppTheme.secondaryText)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                    Text("Recria a sobrecarga na tela bloqueada quando o app voltar.")
+                        .font(AppTheme.schoolbell(isVeryCompact ? 14 : 15))
+                        .foregroundStyle(AppTheme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .toggleStyle(.switch)
@@ -423,6 +413,44 @@ struct ProfileView: View {
             }
             .buttonStyle(.plain)
         }
+        .softCard()
+    }
+
+    private func tutorialSection(isVeryCompact: Bool) -> some View {
+        Button {
+            HapticManager.selection()
+            didCompleteAppTutorial = false
+        } label: {
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(AppTheme.primaryChaos.opacity(0.14))
+                    .frame(width: isVeryCompact ? 42 : 48, height: isVeryCompact ? 42 : 48)
+                    .overlay {
+                        Image(systemName: "questionmark.circle")
+                            .font(.system(size: isVeryCompact ? 19 : 22, weight: .semibold))
+                            .foregroundStyle(AppTheme.primaryChaos)
+                    }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Rever tutorial")
+                        .font(AppTheme.schoolbell(isVeryCompact ? 19 : 21))
+                        .foregroundStyle(AppTheme.primaryText)
+
+                    Text("Mostra novamente o guia rápido de Visão geral, Deadlines, gestos e tempo disponível.")
+                        .font(AppTheme.schoolbell(isVeryCompact ? 14 : 15))
+                        .foregroundStyle(AppTheme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 8)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(AppTheme.primaryChaos)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
         .softCard()
     }
 
@@ -794,7 +822,14 @@ struct AvailableHoursCard: View {
             VStack(spacing: 16) {
                 ForEach(AvailableWeekday.allCases) { day in
                     Button {
-                        if isEditing {
+                        if !isEditing {
+                            resetDraftHours()
+                            withAnimation(.snappy(duration: 0.22)) {
+                                isEditing = true
+                            }
+                        }
+
+                        if isEditing || allowsEditingToggle {
                             pickerDay = day
                         }
                     } label: {
@@ -821,6 +856,8 @@ struct AvailableHoursCard: View {
                                 .frame(width: isVeryCompact ? 58 : (isCompact ? 68 : 82), alignment: .trailing)
                                 .minimumScaleFactor(0.75)
                         }
+                        .padding(.vertical, 7)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
@@ -878,12 +915,19 @@ struct AvailableHoursCard: View {
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text("Meu tempo disponível")
-                .font(AppTheme.schoolbell(isVeryCompact ? 21 : (isCompact ? 22 : 24)))
-                .foregroundStyle(AppTheme.primaryText)
-                .lineLimit(2)
-                .minimumScaleFactor(0.82)
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Meu tempo disponível")
+                    .font(AppTheme.schoolbell(isVeryCompact ? 21 : (isCompact ? 22 : 24)))
+                    .foregroundStyle(AppTheme.primaryText)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.82)
+
+                Text("Toque em um dia ou horário para ajustar manualmente.")
+                    .font(AppTheme.schoolbell(isVeryCompact ? 13 : 14))
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             Spacer()
 

@@ -195,6 +195,7 @@ struct TasksView: View {
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .stroke(AppTheme.primaryChaos.opacity(0.26), lineWidth: 1)
                         )
+                        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
                 .buttonStyle(.plain)
 
@@ -218,6 +219,7 @@ struct TasksView: View {
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .stroke(AppTheme.primaryChaos.opacity(0.9), lineWidth: 1)
                         )
+                        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
                 .buttonStyle(.plain)
             }
@@ -487,13 +489,13 @@ struct TasksView: View {
                     }
                 } label: {
                     Text(filter.title)
-                        .font(AppTheme.schoolbell(isVeryCompact ? 8 : (isCompact ? 9 : 13)))
+                        .font(AppTheme.schoolbell(isVeryCompact ? 11 : (isCompact ? 12 : 14)))
                         .foregroundStyle(isSelected ? .white : AppTheme.primaryText)
                         .lineLimit(1)
                         .minimumScaleFactor(0.72)
-                        .padding(.horizontal, isVeryCompact ? 3 : 5)
+                        .padding(.horizontal, isVeryCompact ? 4 : 6)
                         .frame(maxWidth: .infinity, alignment: .center)
-                        .frame(height: isVeryCompact ? 36 : (isCompact ? 38 : 42))
+                        .frame(height: isVeryCompact ? 44 : 46)
                         .background(
                             RoundedRectangle(cornerRadius: isVeryCompact ? 15 : (isCompact ? 16 : 18), style: .continuous)
                                 .fill(isSelected ? AppTheme.primaryChaos : Color.white.opacity(0.76))
@@ -503,6 +505,7 @@ struct TasksView: View {
                                 .stroke(isSelected ? AppTheme.primaryChaos : AppTheme.primaryChaos.opacity(0.12), lineWidth: 1)
                         )
                         .shadow(color: isSelected ? AppTheme.primaryChaos.opacity(0.08) : Color.clear, radius: 8, x: 0, y: 4)
+                        .contentShape(RoundedRectangle(cornerRadius: isVeryCompact ? 15 : (isCompact ? 16 : 18), style: .continuous))
                 }
                 .buttonStyle(.plain)
             }
@@ -604,11 +607,17 @@ struct TasksView: View {
                 .offset(x: leftPanelWidth)
         }
         .contentShape(Rectangle())
+        .onTapGesture {
+            HapticManager.impact(.light)
+            detailTask = task
+        }
 
-        return SwipeToDeleteDeadlineCard(
+        return SwipeToDeadlineActionCard(
             onDelete: {
-                HapticManager.notify(.warning)
                 delete(task)
+            },
+            onComplete: {
+                TaskManager(modelContext: modelContext).completeSession(for: task)
             }
         ) {
             cardContent
@@ -1091,18 +1100,21 @@ struct TasksView: View {
     }
 }
 
-private struct SwipeToDeleteDeadlineCard<Content: View>: View {
+private struct SwipeToDeadlineActionCard<Content: View>: View {
     let onDelete: () -> Void
+    let onComplete: () -> Void
     @ViewBuilder let content: Content
 
     @State private var horizontalOffset: CGFloat = 0
 
-    private let deleteThreshold: CGFloat = 220
+    private let deleteThreshold: CGFloat = 190
+    private let completeThreshold: CGFloat = 110
 
     var body: some View {
+        let completeProgress = min(max(horizontalOffset / completeThreshold, 0), 1)
         let deleteProgress = min(max(-horizontalOffset / deleteThreshold, 0), 1)
 
-        ZStack(alignment: .trailing) {
+        ZStack {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .fill(AppTheme.critical.opacity(0.16 + 0.54 * deleteProgress))
                 .overlay(alignment: .trailing) {
@@ -1113,10 +1125,26 @@ private struct SwipeToDeleteDeadlineCard<Content: View>: View {
                 }
                 .opacity(deleteProgress > 0 ? 1 : 0)
 
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(AppTheme.supportGreen.opacity(0.16 + 0.54 * completeProgress))
+                .overlay(alignment: .leading) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.46 + 0.54 * completeProgress))
+
+                        Text("Concluir")
+                            .font(AppTheme.schoolbell(16))
+                            .foregroundStyle(.white.opacity(0.46 + 0.54 * completeProgress))
+                    }
+                    .padding(.leading, 22)
+                }
+                .opacity(completeProgress > 0 ? 1 : 0)
+
             content
                 .offset(x: horizontalOffset)
                 .gesture(
-                    DragGesture(minimumDistance: 12, coordinateSpace: .local)
+                    DragGesture(minimumDistance: 8, coordinateSpace: .local)
                         .onChanged { value in
                             let horizontal = value.translation.width
                             let vertical = value.translation.height
@@ -1124,9 +1152,9 @@ private struct SwipeToDeleteDeadlineCard<Content: View>: View {
                             guard abs(horizontal) > abs(vertical) else { return }
 
                             if horizontal < 0 {
-                                horizontalOffset = horizontal
+                                horizontalOffset = max(horizontal, -150)
                             } else {
-                                horizontalOffset = min(horizontal * 0.18, 18)
+                                horizontalOffset = min(horizontal, 230)
                             }
                         }
                         .onEnded { value in
@@ -1148,6 +1176,17 @@ private struct SwipeToDeleteDeadlineCard<Content: View>: View {
                                 }
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
                                     onDelete()
+                                }
+                            } else if horizontal >= completeThreshold || predictedHorizontal >= completeThreshold * 1.08 {
+                                HapticManager.notify(.success)
+                                withAnimation(.spring(response: 0.22, dampingFraction: 0.82)) {
+                                    horizontalOffset = 128
+                                }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                                    onComplete()
+                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.86)) {
+                                        horizontalOffset = 0
+                                    }
                                 }
                             } else {
                                 withAnimation(.spring(response: 0.25, dampingFraction: 0.86)) {

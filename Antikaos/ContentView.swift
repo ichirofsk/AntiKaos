@@ -9,12 +9,14 @@ struct ContentView: View {
     @Query(sort: \modelHorasDisponiveis.updatedAt, order: .reverse) private var availableHoursModels: [modelHorasDisponiveis]
     @AppStorage("profile.userName") private var userName = ""
     @AppStorage("profile.didCompleteAvailableHoursOnboarding") private var didCompleteAvailableHoursOnboarding = false
+    @AppStorage("profile.didCompleteAppTutorial") private var didCompleteAppTutorial = false
     @State private var selectedTab: AppTab = .overview
     @State private var isShowingLaunchScreen = true
     @State private var onboardingName = ""
     @State private var isShowingAvailabilityInfo = false
     @State private var onboardingDraftMinutes: [AvailableWeekday: Int] = [:]
     @State private var pickerDay: AvailableWeekday?
+    @State private var tutorialStep = 0
     @FocusState private var isOnboardingNameFocused: Bool
     private let onboardingAccent = Color(red: 216 / 255, green: 113 / 255, blue: 66 / 255)
     private let onboardingBackground = Color(red: 244 / 255, green: 237 / 255, blue: 232 / 255)
@@ -77,6 +79,10 @@ struct ContentView: View {
                 availabilityOnboardingScreen
                     .transition(.opacity)
                     .zIndex(2)
+            } else if !didCompleteAppTutorial {
+                appTutorialScreen
+                    .transition(.opacity)
+                    .zIndex(2)
             } else if isShowingLaunchScreen {
                 launchScreen
                     .transition(.opacity)
@@ -86,6 +92,7 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.24), value: isShowingLaunchScreen)
         .animation(.easeInOut(duration: 0.24), value: needsNameOnboarding)
         .animation(.easeInOut(duration: 0.24), value: needsAvailableHoursOnboarding)
+        .animation(.easeInOut(duration: 0.24), value: didCompleteAppTutorial)
         .dismissKeyboardOnTap()
         .onAppear {
             onboardingName = userName
@@ -244,10 +251,17 @@ struct ContentView: View {
 
                 VStack(alignment: .leading, spacing: isVeryCompact ? 16 : 20) {
                     HStack(alignment: .top) {
-                        Text("Qual a sua disponibilidade?")
-                            .font(.custom("Schoolbell", size: isVeryCompact ? 24 : (isCompact ? 26 : 28)))
-                            .foregroundStyle(Color.black.opacity(0.92))
-                            .multilineTextAlignment(.leading)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Qual a sua disponibilidade?")
+                                .font(.custom("Schoolbell", size: isVeryCompact ? 24 : (isCompact ? 26 : 28)))
+                                .foregroundStyle(Color.black.opacity(0.92))
+                                .multilineTextAlignment(.leading)
+
+                            Text("Toque em cima de um dia ou horário para ajustar manualmente.")
+                                .font(.custom("Schoolbell", size: isVeryCompact ? 15 : 16))
+                                .foregroundStyle(Color.black.opacity(0.62))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
 
                         Spacer()
 
@@ -279,8 +293,10 @@ struct ContentView: View {
             createAvailableHoursModelIfNeeded()
             resetOnboardingDraftMinutes()
         }
-        .alert("É possível alterar na tela Perfil", isPresented: $isShowingAvailabilityInfo) {
+        .alert("Ajuste manual", isPresented: $isShowingAvailabilityInfo) {
             Button("OK", role: .cancel) {}
+        } message: {
+            Text("Você pode tocar em qualquer dia ou horário para escolher manualmente. Depois, também dá para mudar isso na tela Perfil.")
         }
         .sheet(item: $pickerDay) { day in
             onboardingWheelPicker(day: day)
@@ -355,7 +371,8 @@ struct ContentView: View {
                     .foregroundStyle(onboardingAccent)
                     .frame(width: isVeryCompact ? 64 : 78, alignment: .trailing)
             }
-            .padding(.vertical, 2)
+            .padding(.vertical, 7)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -408,6 +425,135 @@ struct ContentView: View {
         }
         .buttonStyle(.plain)
         .padding(.top, 4)
+    }
+
+    private var appTutorialScreen: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            let isCompact = width < 390
+            let isVeryCompact = width < 370
+            let horizontalPadding = isVeryCompact ? 20.0 : 28.0
+            let item = tutorialItems[tutorialStep]
+
+            ZStack {
+                onboardingBackground
+                    .ignoresSafeArea()
+
+                VStack(alignment: .leading, spacing: isVeryCompact ? 16 : 20) {
+                    HStack {
+                        Text("Como usar o Antikaos")
+                            .font(.custom("Schoolbell", size: isVeryCompact ? 25 : 29))
+                            .foregroundStyle(Color.black.opacity(0.92))
+
+                        Spacer()
+
+                        Text("\(tutorialStep + 1)/\(tutorialItems.count)")
+                            .font(.custom("Schoolbell", size: isVeryCompact ? 16 : 18))
+                            .foregroundStyle(onboardingAccent)
+                    }
+
+                    VStack(alignment: .leading, spacing: 14) {
+                        Image(systemName: item.icon)
+                            .font(.system(size: isVeryCompact ? 30 : 36, weight: .semibold))
+                            .foregroundStyle(onboardingAccent)
+                            .frame(width: isVeryCompact ? 54 : 62, height: isVeryCompact ? 54 : 62)
+                            .background(Circle().fill(Color.white.opacity(0.68)))
+
+                        Text(item.title)
+                            .font(.custom("Schoolbell", size: isVeryCompact ? 24 : 28))
+                            .foregroundStyle(Color.black.opacity(0.92))
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text(item.message)
+                            .font(.custom("Schoolbell", size: isVeryCompact ? 17 : 19))
+                            .foregroundStyle(Color.black.opacity(0.64))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(isVeryCompact ? 18 : 22)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 26, style: .continuous)
+                            .fill(Color.white.opacity(0.58))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                                    .stroke(onboardingAccent.opacity(0.28), lineWidth: 1)
+                            )
+                    )
+
+                    HStack(spacing: 12) {
+                        if tutorialStep > 0 {
+                            Button {
+                                HapticManager.selection()
+                                withAnimation(.snappy(duration: 0.22)) {
+                                    tutorialStep -= 1
+                                }
+                            } label: {
+                                Text("Voltar")
+                                    .font(.custom("Schoolbell", size: isVeryCompact ? 18 : 20))
+                                    .foregroundStyle(onboardingAccent)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: isVeryCompact ? 48 : 52)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                            .stroke(onboardingAccent.opacity(0.28), lineWidth: 1)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        Button {
+                            HapticManager.selection()
+                            withAnimation(.snappy(duration: 0.22)) {
+                                if tutorialStep < tutorialItems.count - 1 {
+                                    tutorialStep += 1
+                                } else {
+                                    didCompleteAppTutorial = true
+                                }
+                            }
+                        } label: {
+                            Text(tutorialStep < tutorialItems.count - 1 ? "Próximo" : "Entrar no app")
+                                .font(.custom("Schoolbell", size: isVeryCompact ? 18 : 20))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: isVeryCompact ? 48 : 52)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                        .fill(onboardingAccent)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, horizontalPadding)
+                .frame(maxWidth: min(width - (horizontalPadding * 2), 440))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+    }
+
+    private var tutorialItems: [TutorialItem] {
+        [
+            TutorialItem(
+                icon: "circle.grid.2x2.fill",
+                title: "Visão geral",
+                message: "Aqui você acompanha sua Sobrecarga, o foco do dia e a intensidade da semana."
+            ),
+            TutorialItem(
+                icon: "checklist",
+                title: "Deadlines",
+                message: "Toque em qualquer card para ver detalhes. Use o lápis para editar com mais precisão."
+            ),
+            TutorialItem(
+                icon: "hand.point.left.fill",
+                title: "Gestos nos cards",
+                message: "Arraste uma deadline para a esquerda para concluir uma sessão. Arraste para a direita para apagar."
+            ),
+            TutorialItem(
+                icon: "clock",
+                title: "Meu tempo disponível",
+                message: "No Perfil, toque em um dia ou no horário para ajustar manualmente sua disponibilidade."
+            )
+        ]
     }
 
     private func onboardingWheelPicker(day: AvailableWeekday) -> some View {
@@ -555,6 +701,12 @@ private enum AppTab: Hashable {
     case overview
     case tasks
     case profile
+}
+
+private struct TutorialItem {
+    let icon: String
+    let title: String
+    let message: String
 }
 
 #Preview {

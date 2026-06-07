@@ -34,13 +34,29 @@ struct ChaosCircle: View {
                 .minimumScaleFactor(0.75)
                 .multilineTextAlignment(.center)
 
-                Text(AppStrings.localized(level.titleKey))
-                    .font(AppTheme.schoolbell(18))
-                    .foregroundStyle(AppTheme.primaryChaos)
+                VStack(spacing: 0) {
+                    Text("Sobrecarga")
+                        .font(AppTheme.schoolbell(max(size * 0.085, 15)))
+                        .foregroundStyle(level.tint)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+
+                    Text(levelName(for: level))
+                        .font(AppTheme.schoolbell(max(size * 0.078, 14)))
+                        .foregroundStyle(level.tint)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
             }
         }
         .frame(width: size, height: size)
         .accessibilityElement(children: .combine)
+    }
+
+    private func levelName(for level: ChaosLevel) -> String {
+        AppStrings.localized(level.titleKey)
+            .replacingOccurrences(of: "Sobrecarga ", with: "")
+            .capitalized
     }
 }
 
