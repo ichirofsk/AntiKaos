@@ -1152,9 +1152,9 @@ private struct SwipeToDeadlineActionCard<Content: View>: View {
                             guard abs(horizontal) > abs(vertical) else { return }
 
                             if horizontal < 0 {
-                                horizontalOffset = max(horizontal, -150)
+                                horizontalOffset = max(horizontal, -230)
                             } else {
-                                horizontalOffset = min(horizontal, 230)
+                                horizontalOffset = min(horizontal, 150)
                             }
                         }
                         .onEnded { value in

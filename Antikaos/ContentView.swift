@@ -543,11 +543,11 @@ struct ContentView: View {
                 title: "Deadlines",
                 message: "Toque em qualquer card para ver detalhes. Use o lápis para editar com mais precisão."
             ),
-            TutorialItem(
-                icon: "hand.point.left.fill",
-                title: "Gestos nos cards",
-                message: "Arraste uma deadline para a esquerda para concluir uma sessão. Arraste para a direita para apagar."
-            ),
+                TutorialItem(
+                    icon: "hand.point.left.fill",
+                    title: "Gestos nos cards",
+                    message: "Arraste uma deadline para a direita para apagar. Arraste para a esquerda para concluir uma sessão."
+                ),
             TutorialItem(
                 icon: "clock",
                 title: "Meu tempo disponível",
